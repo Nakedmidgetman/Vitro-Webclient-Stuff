@@ -1,8 +1,8 @@
 /*
 Genesis Quest Tracker - Webclient Alias Script
-Version: 44.0.0-resizable-no-minimize-integrated-qclicks
+Version: 44.0
 Paste this entire script into a Genesis webclient JavaScript alias.
-Recommended alias pattern: ^quest(?:\s+(.*))?$
+Recommended alias pattern: quest
 */
 
 (function () {
