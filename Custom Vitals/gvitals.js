@@ -2,12 +2,8 @@
 Genesis GVitals v94
 Alias value/pattern: gvitals
 
-Fixes:
-- Position/width saves through browser reload using localStorage + gwc.userdata.
-- Autosaves after drag/resize.
-- Lock still saves and makes the bar click-through.
-- GMCP Char.Vitals supported.
-- Output fallback still supported through window.GenesisVitals.onOutputLine.
+OPTIONAL TRIGGER:
+Auto Restore - Auto loads tabbed stuff and vitals.
 
 Commands:
   gvitals
