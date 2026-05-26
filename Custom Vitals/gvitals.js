@@ -2,6 +2,8 @@
 Genesis GVitals v94
 Alias value/pattern: gvitals
 
+Required Trigger: Gvitals Output
+
 OPTIONAL TRIGGER:
 Auto Restore - Auto loads tabbed stuff and vitals.
 
@@ -439,8 +441,8 @@ try {
         if (text.indexOf("too full to eat") !== -1) return 100;
         if (text.indexOf("too much for you") !== -1) return 100;
         if (text.indexOf("eat no more") !== -1) return 100;
-        if (text.indexOf("barely eat more") !== -1) return 90;
-        if (text.indexOf("barely eat") !== -1) return 90;
+        if (text.indexOf("barely eat more") !== -1) return 100;
+        if (text.indexOf("barely eat") !== -1) return 100;
         if (text.indexOf("eat a little more") !== -1) return 65;
         if (text.indexOf("eat a little") !== -1) return 75;
         if (text.indexOf("eat some more") !== -1) return 45;
@@ -454,8 +456,8 @@ try {
         if (text.indexOf("too full to drink") !== -1) return 100;
         if (text.indexOf("drunk your fill") !== -1) return 100;
         if (text.indexOf("drink no more") !== -1) return 100;
-        if (text.indexOf("barely drink more") !== -1) return 90;
-        if (text.indexOf("barely drink") !== -1) return 90;
+        if (text.indexOf("barely drink more") !== -1) return 100;
+        if (text.indexOf("barely drink") !== -1) return 100;
         if (text.indexOf("drink a little more") !== -1) return 65;
         if (text.indexOf("drink a little") !== -1) return 75;
         if (text.indexOf("drink some more") !== -1) return 45;
