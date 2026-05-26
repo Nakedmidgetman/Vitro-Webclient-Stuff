@@ -1,12 +1,30 @@
 /*
-  Genesis Webclient AutoHunter - Path Recorder Version
-  Alias pattern: ghunt
-  Type: Javascript
-  
+  Genesis Webclient AutoHunter - Bottom Tab Version
+  Alias pattern:
+    ghunt
+
   Required triggers:
     1. ghunt Look Line
-    2. gunt Kill
-    3. Ghunt No Creature
+    2. ghunt Kill 
+    3. ghunt No Creature
+
+    Optional Trigger;
+    Auto Restore - Restores tabbed windows and vitals
+
+  This does not use a mapper.
+  It uses saved manual paths and reverse-walks the path to return home.
+
+  Updated:
+  - Better multi-mob line parsing.
+  - Handles lines like:
+      A ghastly disjointed male dewar, a grim disjointed male dewar and a depressed menacing female dewar.
+    as 3 dewar.
+  - Adds kill mode:
+      ghunt killmode single
+      ghunt killmode all
+  - Adds guild skill support:
+      ghunt guildskill add cdonk
+  - v99: AutoHunter tracker docks into the bottom tab section instead of using a popout window.
 */
 
 (function () {
@@ -482,128 +500,161 @@
   }
 
   function createHUD() {
-    var existing = document.getElementById("gwhuntHud");
-    var d;
+    var bottom = document.getElementById("bottomsidebar");
+    var tabs;
+    var tabLi;
+    var tabLink;
     var box;
-    var header;
-    var close;
     var body;
-    var dragging;
-    var startX;
-    var startY;
-    var startLeft;
-    var startTop;
+    var oldStyle;
+    var style;
+    var oldFloating;
+    var communication;
 
-    if (existing) {
-      existing.style.display = "block";
-      updateHUD();
+    oldStyle = document.getElementById("gwhuntHudDockStyle");
+    if (oldStyle) {
+      oldStyle.remove();
+    }
+
+    style = document.createElement("style");
+    style.id = "gwhuntHudDockStyle";
+    style.textContent =
+      "#bottomsidebar #autohunt.content {" +
+      "  box-sizing: border-box;" +
+      "  position: static !important;" +
+      "  z-index: auto !important;" +
+      "  height: 100%;" +
+      "  overflow-y: auto;" +
+      "  padding: 8px 10px;" +
+      "  color: #eeeeee;" +
+      "  background: transparent;" +
+      "}" +
+      "#gwhuntHud { position: static !important; z-index: auto !important; }" +
+      "#gwhuntHudInner {" +
+      "  font-family: monospace;" +
+      "  font-size: 12px;" +
+      "  line-height: 1.35;" +
+      "}" +
+      "#gwhuntHudInner .gh-title {" +
+      "  color: #ffb347;" +
+      "  font-weight: bold;" +
+      "  text-align: center;" +
+      "  margin: 0 0 8px 0;" +
+      "  font-size: 13px;" +
+      "}" +
+      "#gwhuntHudInner .gh-grid {" +
+      "  display: grid;" +
+      "  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));" +
+      "  gap: 7px;" +
+      "}" +
+      "#gwhuntHudInner .gh-card {" +
+      "  border: 1px solid rgba(255,179,71,0.65);" +
+      "  border-radius: 8px;" +
+      "  padding: 7px 9px;" +
+      "  background: rgba(8,12,16,0.58);" +
+      "}" +
+      "#gwhuntHudInner .gh-label {" +
+      "  color: #ffb347;" +
+      "  font-weight: bold;" +
+      "  margin-bottom: 3px;" +
+      "}" +
+      "#gwhuntHudInner .gh-value {" +
+      "  color: #ffffff;" +
+      "  word-break: break-word;" +
+      "}" +
+      "#gwhuntHudInner .gh-footer {" +
+      "  margin-top: 8px;" +
+      "  text-align: center;" +
+      "  color: #88ccff;" +
+      "}";
+    document.head.appendChild(style);
+
+    if (!bottom) {
+      append("Could not find #bottomsidebar. AutoHunter tab was not created.", warnColor);
       return;
     }
 
-    d = ensureData();
+    tabs = bottom.querySelector("ul.idTabs");
+    if (!tabs) {
+      tabs = document.createElement("ul");
+      tabs.className = "idTabs";
+      bottom.insertBefore(tabs, bottom.firstChild);
+    }
 
-    box = document.createElement("div");
-    box.id = "gwhuntHud";
-    box.style.position = "fixed";
-    box.style.left = d.hud.left;
-    box.style.top = d.hud.top;
-    box.style.width = d.hud.width;
-    box.style.height = d.hud.height;
-    box.style.zIndex = "5000";
-    box.style.background = "rgba(0,0,0,0.88)";
-    box.style.color = "#ffffff";
-    box.style.border = "1px solid #ffb347";
-    box.style.borderRadius = "8px";
-    box.style.resize = "both";
-    box.style.overflow = "auto";
-    box.style.fontFamily = "monospace";
-    box.style.fontSize = "12px";
+    /* Remove old floating HUD if it was created by a previous version. */
+    oldFloating = document.getElementById("gwhuntHud");
+    if (oldFloating && oldFloating.parentNode !== bottom) {
+      oldFloating.remove();
+    }
 
-    header = document.createElement("div");
-    header.id = "gwhuntHudHeader";
-    header.textContent = "AutoHunter";
-    header.style.cursor = "move";
-    header.style.padding = "5px 8px";
-    header.style.background = "#1b1b1b";
-    header.style.borderBottom = "1px solid #ffb347";
-    header.style.userSelect = "none";
-    header.style.fontWeight = "bold";
-
-    close = document.createElement("button");
-    close.textContent = "x";
-    close.style.float = "right";
-    close.style.fontSize = "10px";
-    close.style.background = "#300";
-    close.style.color = "#fff";
-    close.style.border = "1px solid #900";
-    close.style.cursor = "pointer";
-
-    close.onclick = function () {
+    box = document.getElementById("gwhuntHud");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "gwhuntHud";
+      box.className = "content";
       box.style.display = "none";
-    };
-
-    header.appendChild(close);
-
-    body = document.createElement("div");
-    body.id = "gwhuntHudBody";
-    body.style.padding = "8px";
-
-    box.appendChild(header);
-    box.appendChild(body);
-    document.body.appendChild(box);
-
-    dragging = false;
-    startX = 0;
-    startY = 0;
-    startLeft = 0;
-    startTop = 0;
-
-    header.addEventListener("mousedown", function (event) {
-      if (event.target === close) {
-        return;
+      box.style.overflow = "auto";
+      box.style.height = "100%";
+      bottom.appendChild(box);
+    } else {
+      box.className = "content";
+      box.style.position = "";
+      box.style.left = "";
+      box.style.top = "";
+      box.style.width = "";
+      box.style.height = "100%";
+      box.style.zIndex = "";
+      box.style.background = "";
+      box.style.border = "";
+      box.style.borderRadius = "";
+      box.style.resize = "";
+      box.style.overflow = "auto";
+      box.style.display = box.style.display || "none";
+      if (box.parentNode !== bottom) {
+        bottom.appendChild(box);
       }
+    }
 
-      dragging = true;
-      startX = event.clientX;
-      startY = event.clientY;
-      startLeft = parseInt(box.style.left, 10) || 0;
-      startTop = parseInt(box.style.top, 10) || 0;
+    if (!document.getElementById("gwhuntTabLink")) {
+      tabLi = document.createElement("li");
+      tabLink = document.createElement("a");
+      tabLink.id = "gwhuntTabLink";
+      tabLink.href = "#gwhuntHud";
+      tabLink.textContent = "autohunt";
+      tabLi.appendChild(tabLink);
+      tabs.appendChild(tabLi);
+    }
 
-      event.preventDefault();
-    });
+    tabLink = document.getElementById("gwhuntTabLink");
+    if (tabLink && !tabLink.dataset.gwhuntBound) {
+      tabLink.dataset.gwhuntBound = "1";
+      tabLink.addEventListener("click", function (event) {
+        var links = tabs.querySelectorAll("a");
+        var contents = bottom.querySelectorAll("div.content");
+        var i;
 
-    document.addEventListener("mousemove", function (event) {
-      if (!dragging) {
-        return;
-      }
+        event.preventDefault();
 
-      box.style.left = String(startLeft + event.clientX - startX) + "px";
-      box.style.top = String(startTop + event.clientY - startY) + "px";
-    });
+        for (i = 0; i < links.length; i++) {
+          links[i].classList.remove("selected");
+        }
 
-    document.addEventListener("mouseup", function () {
-      if (!dragging) {
-        return;
-      }
+        for (i = 0; i < contents.length; i++) {
+          contents[i].style.display = "none";
+        }
 
-      dragging = false;
-
-      d.hud.left = box.style.left;
-      d.hud.top = box.style.top;
-      d.hud.width = box.style.width;
-      d.hud.height = box.style.height;
-
-      saveBackup();
-    });
-
-    if (typeof ResizeObserver !== "undefined") {
-      var ro = new ResizeObserver(function () {
-        d.hud.width = box.style.width;
-        d.hud.height = box.style.height;
-        saveBackup();
+        tabLink.classList.add("selected");
+        box.style.display = "";
       });
+    }
 
-      ro.observe(box);
+    if (!document.getElementById("gwhuntHudBody")) {
+      box.innerHTML = '<div id="gwhuntHudInner"><div id="gwhuntHudBody">AutoHunter tracker loading...</div></div>';
+    }
+
+    communication = document.getElementById("communication");
+    if (communication && !communication.style.display && !document.querySelector("#bottomsidebar ul.idTabs a.selected")) {
+      communication.style.display = "";
     }
 
     updateHUD();
@@ -645,7 +696,6 @@
     }
 
     html = "";
-    html += "<div style='color:#ffb347;text-align:center;font-weight:bold;margin-bottom:4px;'>Genesis AutoHunter</div>";
     html += "Targets: <span style='color:#ffe080;'>" + (d.targets.length ? d.targets.join(", ") : "none") + "</span><br>";
     html += "Path: <span style='color:#ffe080;'>" + (d.activePath || "none") + "</span><br>";
     html += "Step: " + s.pathIndex + " / " + pathLen + "<br>";
