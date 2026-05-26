@@ -1,116 +1,91 @@
 /*
-Genesis Runtime Restore v2
-Type: regexp
-Pattern:
-/*
-Genesis Runtime Restore v2
+Genesis Runtime Restore v6 SAFE
+Trigger name: Genesis Restore
 Type: regexp
 Pattern:
 ^(?!/\*|var |if |try |function |const |let ).+
 
 Purpose:
-Restores UI stuff like gvitals and tabbed trackers and inventory after browser reload otherwise you'll need to type them manually. Anytime you mess with website UI stuff like the webclient layout anytime you refresh your browser it doesn't always get saved
-So this trigger works around that so it'll autoload all your visual stuff thats attached to the webclient and not a popup window or something.
-
-
-Restores:
-  gvitals
-  Tracker
-  Inventory
-  
-*/
-
-try {
-  (function () {
-    if (window.GenesisRuntimeRestoreStarted) {
-      return;
-    }
-
-    window.GenesisRuntimeRestoreStarted = true;
-
-    function sendClientCommand(cmd) {
-      try {
-        gwc.connection.send(cmd, true);
-        return true;
-      } catch (e1) {
-        try {
-          gwc.connection.send(cmd);
-          return true;
-        } catch (e2) {
-          return false;
-        }
-      }
-    }
-
-    /*
-      Wait a little so aliases and user data have time to finish loading.
-      This trigger fires on the first normal game-output line it sees.
-    */
-    setTimeout(function () {
-      sendClientCommand("gvitals");
-
-      setTimeout(function () {
-        sendClientCommand("ginv refresh");
-
-        setTimeout(function () {
-          sendClientCommand("gtrack refresh");
-        }, 700);
-      }, 700);
-    }, 1800);
-  })();
-} catch (e) {
-  try {
-    gwc.output.append("[RuntimeRestore ERROR] " + e.name + ": " + e.message, "#ff6666");
-  } catch (ignore) {}
-}
-Purpose:
-Restores  UI after browser reload otherwise you'll need to type them manuall. Anytime you mess with website UI stuff like the webclient layout anytime you refresh your browser it doesn't get saved
-So this trigger works around that so it'll autoload all your visual stuff thats attached to the webclient and not a popup window or something.
-
+Restores gvitals, tabbed stuff like trackers and quest. So you dont have to type anything when logging in.
+GUI stuff isn't saved by webclient automatically sometimes.
 
 Restores:
   gvitals
   ginv refresh
   gtrack refresh
+  quest
+  ghunt
+
+Important:
+- No MutationObserver.
+- No repeated DOM scanning.
+- No modal/layer watcher.
+- Runs only once per browser page load.
 */
 
 try {
   (function () {
-    if (window.GenesisRuntimeRestoreStarted) {
+    if (window.GenesisRuntimeRestoreStarted === true) {
       return;
     }
 
     window.GenesisRuntimeRestoreStarted = true;
 
-    function sendClientCommand(cmd) {
+    function out(msg, color) {
       try {
-        gwc.connection.send(cmd, true);
-        return true;
-      } catch (e1) {
-        try {
-          gwc.connection.send(cmd);
-          return true;
-        } catch (e2) {
-          return false;
-        }
+        gwc.output.append("[RuntimeRestore] " + String(msg), color || "#88ccff");
+      } catch (e) {
+        try { console.log("[RuntimeRestore] " + msg); } catch (e2) {}
       }
     }
 
-    /*
-      Wait a little so aliases and user data have time to finish loading.
-      This trigger fires on the first normal game-output line it sees.
-    */
-    setTimeout(function () {
-      sendClientCommand("gvitals");
+    function sendClientCommand(cmd) {
+      try {
+        if (gwc && gwc.connection && typeof gwc.connection.send === "function") {
+          gwc.connection.send(cmd, true);
+          return true;
+        }
+      } catch (e1) {}
 
+      try {
+        if (gwc && gwc.connection && typeof gwc.connection.send === "function") {
+          gwc.connection.send(cmd);
+          return true;
+        }
+      } catch (e2) {}
+
+      return false;
+    }
+
+    function restore(cmd, delayMs) {
       setTimeout(function () {
-        sendClientCommand("ginv refresh");
+        try {
+          sendClientCommand(cmd);
+        } catch (e) {
+          try {
+            gwc.output.append(
+              "[RuntimeRestore ERROR] " + cmd + " failed: " + e.name + ": " + e.message,
+              "#ff6666"
+            );
+          } catch (ignore) {}
+        }
+      }, delayMs);
+    }
 
-        setTimeout(function () {
-          sendClientCommand("gtrack refresh");
-        }, 700);
-      }, 700);
-    }, 1800);
+    /*
+      Give aliases/userdata time to load.
+      Keep spacing slow enough that each UI script can finish before the next starts.
+    */
+
+    restore("gvitals", 2500);
+    restore("ginv refresh", 4000);
+    restore("gtrack refresh", 5500);
+    restore("quest", 7000);
+    restore("ghunt", 8500);
+
+    setTimeout(function () {
+      out("Restore queued: gvitals, inventory, tracker, quests, autohunt.", "#80ff80");
+    }, 9000);
   })();
 } catch (e) {
   try {
