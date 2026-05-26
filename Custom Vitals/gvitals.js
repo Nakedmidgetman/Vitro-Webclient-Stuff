@@ -1,9 +1,13 @@
 /*
-Genesis GVitals 
+Genesis GVitals v94
 Alias value/pattern: gvitals
 
-Required Trigger(s):
-Gvitals Output
+Fixes:
+- Position/width saves through browser reload using localStorage + gwc.userdata.
+- Autosaves after drag/resize.
+- Lock still saves and makes the bar click-through.
+- GMCP Char.Vitals supported.
+- Output fallback still supported through window.GenesisVitals.onOutputLine.
 
 Commands:
   gvitals
@@ -17,7 +21,8 @@ Commands:
 
 try {
   (function () {
-    var VERSION = "93.0.0";
+    var VERSION = "94.0.0";
+    var STORAGE_KEY = "GenesisGVitalsPositionV94";
 
     function out(msg, color) {
       try {
@@ -67,8 +72,74 @@ try {
     }
 
     function ensureUserdata() {
-      gwc.userdata.gvitals = gwc.userdata.gvitals || {};
-      return gwc.userdata.gvitals;
+      try {
+        gwc.userdata = gwc.userdata || {};
+        gwc.userdata.gvitals = gwc.userdata.gvitals || {};
+        return gwc.userdata.gvitals;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function readLocalPosition() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+
+        var obj = JSON.parse(raw);
+        if (
+          obj &&
+          isFinite(Number(obj.left)) &&
+          isFinite(Number(obj.top)) &&
+          isFinite(Number(obj.width))
+        ) {
+          return {
+            left: Number(obj.left),
+            top: Number(obj.top),
+            width: Number(obj.width),
+            locked: obj.locked !== false
+          };
+        }
+      } catch (e) {}
+
+      return null;
+    }
+
+    function writeLocalPosition(pos) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+      } catch (e) {}
+    }
+
+    function clearLocalPosition() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {}
+    }
+
+    function savePositionToStores(lockIt) {
+      var bar = document.getElementById("genesisVitalsBar");
+      var ud = ensureUserdata();
+      var rect;
+      var pos;
+
+      if (!bar) return;
+
+      rect = bar.getBoundingClientRect();
+
+      pos = {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        locked: lockIt ? true : (ud.locked !== false)
+      };
+
+      ud.left = pos.left;
+      ud.top = pos.top;
+      ud.width = pos.width;
+      ud.locked = pos.locked;
+
+      writeLocalPosition(pos);
     }
 
     function state() {
@@ -134,6 +205,7 @@ try {
     function removeOldAttempts() {
       var ids = [
         "genesisVitalsBar",
+        "genesis-gvitals-floating-style-v94",
         "genesis-gvitals-floating-style-v93",
         "genesis-gvitals-floating-style-v92",
         "genesis-gvitals-floating-style-v91",
@@ -319,21 +391,6 @@ try {
       return null;
     }
 
-    function pct(current, max) {
-      current = Number(current);
-      max = Number(max);
-
-      if (!isFinite(current) || !isFinite(max) || max <= 0) return null;
-
-      return Math.max(0, Math.min(100, Math.round((current / max) * 100)));
-    }
-
-    function directPct(value) {
-      value = Number(value);
-      if (!isFinite(value)) return null;
-      return Math.max(0, Math.min(100, Math.round(value)));
-    }
-
     function phrasePct(kind, text) {
       text = lower(text);
 
@@ -383,30 +440,32 @@ try {
       }
 
       if (kind === "food") {
-        if (text.indexOf("starving") !== -1) return 0;
-        if (text.indexOf("eat a lot more") !== -1) return 15;
-        if (text.indexOf("eat quite a lot more") !== -1) return 25;
-        if (text.indexOf("eat some more") !== -1) return 45;
+        if (text.indexOf("too full to eat") !== -1) return 100;
+        if (text.indexOf("too much for you") !== -1) return 100;
+        if (text.indexOf("eat no more") !== -1) return 100;
+        if (text.indexOf("barely eat more") !== -1) return 90;
+        if (text.indexOf("barely eat") !== -1) return 90;
         if (text.indexOf("eat a little more") !== -1) return 65;
         if (text.indexOf("eat a little") !== -1) return 75;
-        if (text.indexOf("barely eat more") !== -1) return 100;
-        if (text.indexOf("barely eat") !== -1) return 100;
-        if (text.indexOf("eat no more") !== -1) return 100;
-        if (text.indexOf("too full to eat") !== -1) return 100;
+        if (text.indexOf("eat some more") !== -1) return 45;
+        if (text.indexOf("eat quite a lot more") !== -1) return 25;
+        if (text.indexOf("eat a lot more") !== -1) return 15;
+        if (text.indexOf("starving") !== -1) return 0;
         if (text.indexOf("full") !== -1) return 100;
       }
 
       if (kind === "drink") {
-        if (text.indexOf("dehydrated") !== -1) return 0;
-        if (text.indexOf("drink a lot more") !== -1) return 15;
-        if (text.indexOf("drink quite a lot more") !== -1) return 25;
-        if (text.indexOf("drink some more") !== -1) return 45;
+        if (text.indexOf("too full to drink") !== -1) return 100;
+        if (text.indexOf("drunk your fill") !== -1) return 100;
+        if (text.indexOf("drink no more") !== -1) return 100;
+        if (text.indexOf("barely drink more") !== -1) return 90;
+        if (text.indexOf("barely drink") !== -1) return 90;
         if (text.indexOf("drink a little more") !== -1) return 65;
         if (text.indexOf("drink a little") !== -1) return 75;
-        if (text.indexOf("barely drink more") !== -1) return 100;
-        if (text.indexOf("barely drink") !== -1) return 100;
-        if (text.indexOf("drink no more") !== -1) return 100;
-        if (text.indexOf("too full to drink") !== -1) return 100;
+        if (text.indexOf("drink some more") !== -1) return 45;
+        if (text.indexOf("drink quite a lot more") !== -1) return 25;
+        if (text.indexOf("drink a lot more") !== -1) return 15;
+        if (text.indexOf("dehydrated") !== -1) return 0;
         if (text.indexOf("full") !== -1) return 100;
       }
 
@@ -476,14 +535,20 @@ try {
         if (p !== null) s.last.fatiguePct = p;
       }
 
-      if (text.indexOf("eat") !== -1) {
+      if (text.indexOf("eat") !== -1 || text.indexOf("too much for you") !== -1) {
         p = phrasePct("food", text);
-        if (p !== null) s.last.foodPct = p;
+        if (p !== null) {
+          s.last.foodPct = p;
+          s.raw.food = text;
+        }
       }
 
-      if (text.indexOf("drink") !== -1) {
+      if (text.indexOf("drink") !== -1 || text.indexOf("drunk your fill") !== -1) {
         p = phrasePct("drink", text);
-        if (p !== null) s.last.drinkPct = p;
+        if (p !== null) {
+          s.last.drinkPct = p;
+          s.raw.drink = text;
+        }
       }
 
       return true;
@@ -521,10 +586,6 @@ try {
         if (p !== null) s.last.manaPct = p;
       }
 
-      /*
-        For food/drink, prefer GMCP/raw text over native percent.
-        Native #statusbars can be stale after we hide it.
-      */
       if (s.raw.food) {
         p = phrasePct("food", s.raw.food);
         if (p !== null) s.last.foodPct = p;
@@ -532,10 +593,6 @@ try {
         text = getNativeText("food");
         p = phrasePct("food", text);
         if (p !== null) s.last.foodPct = p;
-        else {
-          p = directPct(v.hunger || v.food);
-          if (p !== null) s.last.foodPct = p;
-        }
       }
 
       if (s.raw.drink) {
@@ -545,10 +602,6 @@ try {
         text = getNativeText("drink");
         p = phrasePct("drink", text);
         if (p !== null) s.last.drinkPct = p;
-        else {
-          p = directPct(v.thirst || v.drink);
-          if (p !== null) s.last.drinkPct = p;
-        }
       }
 
       return s.last;
@@ -556,15 +609,25 @@ try {
 
     function defaultPosition() {
       var ud = ensureUserdata();
+      var local = readLocalPosition();
       var status = document.getElementById("statusbars");
       var main = document.getElementById("main");
       var rect;
+
+      if (local) {
+        ud.left = local.left;
+        ud.top = local.top;
+        ud.width = local.width;
+        ud.locked = local.locked;
+        return local;
+      }
 
       if (ud.left !== undefined && ud.top !== undefined && ud.width !== undefined) {
         return {
           left: Number(ud.left),
           top: Number(ud.top),
-          width: Number(ud.width)
+          width: Number(ud.width),
+          locked: ud.locked !== false
         };
       }
 
@@ -573,7 +636,8 @@ try {
         return {
           left: Math.round(rect.left),
           top: Math.round(rect.top),
-          width: Math.round(rect.width)
+          width: Math.round(rect.width),
+          locked: true
         };
       }
 
@@ -582,14 +646,16 @@ try {
         return {
           left: Math.round(rect.left),
           top: Math.round(rect.bottom - 42),
-          width: Math.round(rect.width)
+          width: Math.round(rect.width),
+          locked: true
         };
       }
 
       return {
         left: 0,
         top: window.innerHeight - 80,
-        width: window.innerWidth
+        width: window.innerWidth,
+        locked: true
       };
     }
 
@@ -607,19 +673,7 @@ try {
     }
 
     function savePosition() {
-      var bar = document.getElementById("genesisVitalsBar");
-      var ud = ensureUserdata();
-      var rect;
-
-      if (!bar) return;
-
-      rect = bar.getBoundingClientRect();
-
-      ud.left = Math.round(rect.left);
-      ud.top = Math.round(rect.top);
-      ud.width = Math.round(rect.width);
-      ud.locked = true;
-
+      savePositionToStores(true);
       setLockedVisual(true);
       out("Vitals position saved and locked.", "#80ff80");
     }
@@ -650,11 +704,11 @@ try {
     }
 
     function installStyles() {
-      var old = document.getElementById("genesis-gvitals-floating-style-v93");
+      var old = document.getElementById("genesis-gvitals-floating-style-v94");
       if (old) old.remove();
 
       var style = document.createElement("style");
-      style.id = "genesis-gvitals-floating-style-v93";
+      style.id = "genesis-gvitals-floating-style-v94";
 
       style.textContent =
         "#genesisVitalsBar {" +
@@ -942,9 +996,17 @@ try {
 
       document.addEventListener("mouseup", function () {
         var s = state();
+
         if (s.drag.active || s.drag.resize) {
           s.drag.active = false;
           s.drag.resize = false;
+
+          /*
+            Important:
+            Save after every drag/resize so browser reload restores it,
+            even if user forgets to click lock.
+          */
+          savePositionToStores(false);
         }
       });
     }
@@ -952,6 +1014,7 @@ try {
     function ensureBar() {
       var bar = document.getElementById("genesisVitalsBar");
       var pos;
+      var ud = ensureUserdata();
 
       installStyles();
       hideNativeVitals();
@@ -964,12 +1027,16 @@ try {
 
       pos = defaultPosition();
 
-      if (!bar.style.left) bar.style.left = pos.left + "px";
-      if (!bar.style.top) bar.style.top = pos.top + "px";
-      if (!bar.style.width) bar.style.width = pos.width + "px";
+      if (isFinite(pos.left)) bar.style.left = pos.left + "px";
+      if (isFinite(pos.top)) bar.style.top = pos.top + "px";
+      if (isFinite(pos.width)) bar.style.width = pos.width + "px";
+
+      if (pos.locked !== undefined && ud.locked === undefined) {
+        ud.locked = pos.locked;
+      }
 
       bindDragAndResize(bar);
-      setLockedVisual(ensureUserdata().locked !== false);
+      setLockedVisual(ud.locked !== false);
 
       return bar;
     }
@@ -1034,6 +1101,7 @@ try {
 
     function install() {
       var s = state();
+
       s.enabled = true;
 
       window.GenesisVitals = window.GenesisVitals || {};
@@ -1054,15 +1122,23 @@ try {
       render();
       startTimer();
 
-      out("Vitals installed. GMCP Char subscribed. Use gvitals unlock to drag/resize, then lock.", "#80ff80");
+      out("Vitals installed. Position restores from localStorage. Use gvitals unlock to drag/resize.", "#80ff80");
     }
 
     function unlock() {
       var ud = ensureUserdata();
+
       ud.locked = false;
+
+      var pos = readLocalPosition();
+      if (pos) {
+        pos.locked = false;
+        writeLocalPosition(pos);
+      }
+
       render();
       setLockedVisual(false);
-      out("Vitals unlocked. Drag to move. Drag right edge to resize. Click lock when done.", "#ffcc66");
+      out("Vitals unlocked. Drag to move. Drag right edge to resize. Position autosaves.", "#ffcc66");
     }
 
     function lock() {
@@ -1078,6 +1154,8 @@ try {
       delete ud.width;
       ud.locked = true;
 
+      clearLocalPosition();
+
       if (bar) {
         bar.style.left = "";
         bar.style.top = "";
@@ -1086,7 +1164,7 @@ try {
 
       render();
       snapPosition(true);
-      out("Vitals position reset and snapped.", "#80ff80");
+      out("Vitals position reset, snapped, and saved.", "#80ff80");
     }
 
     function removeVitals() {
@@ -1102,27 +1180,29 @@ try {
       removeOldAttempts();
       showNativeVitals();
 
-      out("GVitals removed. Native vitals restored.", "#ffcc66");
+      out("GVitals removed. Native vitals restored. Saved position was kept.", "#ffcc66");
     }
 
     function status() {
       var ud = ensureUserdata();
       var s = state();
+      var local = readLocalPosition();
 
       out("Version: " + VERSION);
       out("Native #statusbars found: " + !!document.getElementById("statusbars"));
       out("Custom #genesisVitalsBar found: " + !!document.getElementById("genesisVitalsBar"));
       out("Locked: " + (ud.locked !== false));
-      out("Saved left/top/width: " + [ud.left, ud.top, ud.width].join(" / "));
+      out("gwc.userdata left/top/width: " + [ud.left, ud.top, ud.width].join(" / "));
+      out("localStorage left/top/width: " + (local ? [local.left, local.top, local.width].join(" / ") : "none"));
       out("Current pct: H " + s.last.healthPct + " | F " + s.last.fatiguePct + " | M " + s.last.manaPct + " | Food " + s.last.foodPct + " | Drink " + s.last.drinkPct);
-      out("Raw GMCP/text: food='" + s.raw.food + "' drink='" + s.raw.drink + "'");
+      out("Raw food/drink: '" + s.raw.food + "' / '" + s.raw.drink + "'");
     }
 
     function help() {
       out("Commands:");
       out("gvitals          install/restore saved position");
-      out("gvitals unlock   drag/resize mode");
-      out("gvitals lock     save current position");
+      out("gvitals unlock   drag/resize mode; autosaves position");
+      out("gvitals lock     save current position and make click-through");
       out("gvitals snap     snap to native statusbar area and save");
       out("gvitals reset    clear saved position and snap again");
       out("gvitals off      remove custom vitals");
