@@ -1,13 +1,8 @@
 /*
 GVitals GMCP Vitals
-Type: gmcp   ***MAKE SURE TRIGGER TYPE IS GMCP***
+Type: gmcp
 Pattern:
 Char.Vitals
-
-REQUIRED Alias(s):
-Gvitals
-
-
 
 Purpose:
 Updates gvitals from Genesis GMCP Char.Vitals broadcasts.
