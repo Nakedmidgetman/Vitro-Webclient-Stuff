@@ -1,24 +1,26 @@
-
 /*
-Genesis Webclient Simple Tracker Tab v2
+Genesis Webclient Simple Tracker Tab v3
 Alias value: gtrack
-Required Trigger(s):
-  -Room Capture
-  -Event capture
-
-  OptionalTrigger:
-  Auto Restore - Auto loads tabbed stuff and vitals.
 
 Commands:
-  gtrack
-  gtrack refresh
+  gtrack              - open/select tracker tab
+  gtrack show         - open/select tracker tab
+  gtrack refresh      - update tracker silently without stealing current tab
   gtrack reset confirm
+
+Fix:
+  Movement/kill triggers can call window.GenesisActivityTracker.render(),
+  but that no longer auto-selects the tracker tab.
 */
 
 try {
   (function () {
     function out(msg, color) {
-      gwc.output.append("[GTrack] " + String(msg), color || "#88ccff");
+      try {
+        gwc.output.append("[GTrack] " + String(msg), color || "#88ccff");
+      } catch (e) {
+        try { console.log("[GTrack] " + msg); } catch (e2) {}
+      }
     }
 
     function clean(text) {
@@ -98,6 +100,7 @@ try {
         " padding:8px 10px;" +
         " color:#eeeeee;" +
         " background:transparent;" +
+        " z-index:1;" +
         "}" +
         "#genesisTrackerInner {" +
         " font-family:monospace;" +
@@ -209,7 +212,7 @@ try {
       }
     }
 
-    function render() {
+    function render(showTab) {
       var d = data();
       var content;
 
@@ -245,17 +248,20 @@ try {
 
         '</div>';
 
-      selectTab();
+      if (showTab === true) {
+        selectTab();
+      }
     }
 
     function reset() {
       gwc.userdata.gtrack = defaultData();
       out("Tracker reset.", "#80ff80");
-      render();
+      render(true);
     }
 
     function help() {
-      out("gtrack refresh - create/update tracker tab", "#88ccff");
+      out("gtrack / gtrack show - open tracker tab", "#88ccff");
+      out("gtrack refresh - update tracker silently", "#88ccff");
       out("gtrack reset confirm - reset tracker data", "#88ccff");
     }
 
@@ -264,16 +270,28 @@ try {
     var sub = lower(parts[1] || "");
 
     window.GenesisActivityTracker = window.GenesisActivityTracker || {};
-    window.GenesisActivityTracker.render = render;
 
-    if (!cmd || cmd === "help") {
+    /*
+      Important:
+      Triggers call this after movement/kills. It must refresh the tab content
+      WITHOUT clicking/selecting the tracker tab.
+    */
+    window.GenesisActivityTracker.render = function () {
+      render(false);
+    };
+
+    window.GenesisActivityTracker.show = function () {
+      render(true);
+    };
+
+    if (!cmd || cmd === "show" || cmd === "open") {
       help();
-      render();
+      render(true);
       return;
     }
 
     if (cmd === "refresh" || cmd === "r") {
-      render();
+      render(false);
       return;
     }
 
