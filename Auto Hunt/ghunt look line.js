@@ -1,19 +1,19 @@
 /*
-trigger name: Ghunt look line
-Trigger type: regexp
-Script type: Javascript
+Name: Ghunt Look Line
+Type: regexp
+Pattern: ^(.+)\.$
 
-Pattern:^(.+)\.$
-
+Execute the following javascript:
 */
-var line = "";
 
-if (typeof args !== "undefined") {
-  if (args["*"]) line = args["*"];
-  else if (args[0]) line = args[0];
-  else if (args[1]) line = args[1];
-}
-
-if (window.GenesisWebHunter && window.GenesisWebHunter.onOutputLine) {
-  window.GenesisWebHunter.onOutputLine(line);
-}
+  var line = "";
+  
+  if (typeof args !== "undefined") {
+    if (args["*"]) line = args["*"];
+    else if (args[0]) line = args[0];
+    else if (args[1]) line = args[1];
+  }
+  
+  if (window.GenesisWebHunter && window.GenesisWebHunter.onOutputLine) {
+    window.GenesisWebHunter.onOutputLine(line);
+  }
