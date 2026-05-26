@@ -10,6 +10,9 @@ Room Capture
 
 Alias(s) Required:
 gtrack
+
+OPTIONAL Trigger:
+Auto restore visuals-tabbed trackers on startup.js (so you don't have to manullay type anything everytime you login/refresh browser. 
 */
 
 try {
