@@ -15,16 +15,23 @@ In game Steps
 --------------
 
 #1 Type package install
+
 #2 Navigate to where ever you downloaded the web package to and select it.
+
 #3 Once installed type gvitals, quest, ginv (probably can jsut type givtals and it will do the rest)
 
 alias commands
 --------------
 #2 ghunt    - Very powerful auto hunting script. 
+
 #3 quest    - Quest Tracker  (It's pretty awesome)
+
 #4 gvitals  - Improved? vital bars
+
 #4 gloot    - better looting system. Also pretty neat)
+
 #5 ka       - Kill all alias. Type ka help
+
 #6 ginv     - Inventory Panel with blacklist feature (No need to see your guild item, or 5000 herbs, or some of your autoloads/flavor gear)
 
 Coming soon
