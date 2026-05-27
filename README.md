@@ -22,11 +22,11 @@ In game Steps
 
 alias commands
 --------------
-#2 ghunt    - Very powerful auto hunting script. 
+#1 ghunt    - Very powerful auto hunting script. 
 
-#3 quest    - Quest Tracker  (It's pretty awesome)
+#2 quest    - Quest Tracker  (It's pretty awesome)
 
-#4 gvitals  - Improved? vital bars
+#3 gvitals  - Improved? vital bars
 
 #4 gloot    - better looting system. Also pretty neat)
 
