@@ -305,7 +305,7 @@ try {
           "<button id='pkg-close' type='button' style='background:#330000;color:#eee;border:1px solid #777;padding:3px 8px;cursor:pointer;'>X</button>" +
         "</div>" +
         "<div style='padding:8px;border-bottom:1px solid #333;color:" + OK + ";'>" +
-          "Loaded real Genesis JSON: " + aliases.length + " aliases, " + triggers.length + " triggers. No placeholders will be exported." +
+          "Loaded real Genesis JSON: " + aliases.length + " aliases, " + triggers.length + " triggers." +
         "</div>" +
         "<div style='padding:8px;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;'>" +
           "<input id='pkg-search' type='text' placeholder='Search aliases/triggers...' style='flex:1;background:#111;color:#ddd;border:1px solid #555;padding:6px;font-family:monospace;'>" +
