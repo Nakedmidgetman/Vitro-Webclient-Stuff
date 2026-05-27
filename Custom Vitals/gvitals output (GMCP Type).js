@@ -1,56 +1,72 @@
 /*
-GVitals GMCP Vitals
+Trigger
+Name: Gvitals Output
 Type: gmcp
-Pattern:
-Char.Vitals
+Pattern: Char.Vitals
 
-Purpose:
-Updates gvitals from Genesis GMCP Char.Vitals broadcasts.
+Alias(s) Required:
+ - gvitals
 */
 
 try {
-  var payload = null;
+  (function () {
+    var payload = null;
 
-  try {
-    if (typeof args !== "undefined") {
-      if (args[0] && typeof args[0] === "object") payload = args[0];
-      else if (args[1] && typeof args[1] === "object") payload = args[1];
-      else if (args["*"] && typeof args["*"] === "object") payload = args["*"];
-      else if (args["*"] && typeof args["*"] === "string") payload = JSON.parse(args["*"]);
+    function cleanObj(obj) {
+      if (obj && typeof obj === "object") return obj;
+      return null;
     }
-  } catch (e1) {}
 
-  if (!payload) {
-    try {
-      if (
-        gwc.gmcp &&
-        gwc.gmcp.data &&
-        gwc.gmcp.data.character &&
-        gwc.gmcp.data.character.vitals
-      ) {
-        payload = gwc.gmcp.data.character.vitals;
+    if (typeof args !== "undefined") {
+      payload = cleanObj(args[0]) || cleanObj(args[1]) || cleanObj(args["*"]);
+
+      if (!payload && typeof args["*"] === "string") {
+        try { payload = JSON.parse(args["*"]); } catch (e1) {}
       }
-    } catch (e2) {}
-  }
 
-  if (!payload) {
-    try {
-      if (
-        gwc.gmcp &&
-        gwc.gmcp.data &&
-        gwc.gmcp.data.char &&
-        gwc.gmcp.data.char.vitals
-      ) {
-        payload = gwc.gmcp.data.char.vitals;
+      if (!payload && typeof args[1] === "string") {
+        try { payload = JSON.parse(args[1]); } catch (e2) {}
       }
-    } catch (e3) {}
-  }
 
-  if (window.GenesisVitals && window.GenesisVitals.onGMCPVitals) {
-    window.GenesisVitals.onGMCPVitals(payload || {});
-  }
+      if (!payload && typeof args[0] === "string") {
+        try { payload = JSON.parse(args[0]); } catch (e3) {}
+      }
+    }
+
+    if (!payload) {
+      try {
+        if (mud && mud.gmcp && mud.gmcp["char.vitals"]) payload = mud.gmcp["char.vitals"];
+      } catch (e4) {}
+    }
+
+    if (!payload) {
+      try {
+        if (mud && mud.gmcp && mud.gmcp["Char.Vitals"]) payload = mud.gmcp["Char.Vitals"];
+      } catch (e5) {}
+    }
+
+    if (!payload) {
+      try {
+        if (gwc && gwc.gmcp && gwc.gmcp.data && gwc.gmcp.data.char && gwc.gmcp.data.char.vitals) {
+          payload = gwc.gmcp.data.char.vitals;
+        }
+      } catch (e6) {}
+    }
+
+    if (!payload) {
+      try {
+        if (gwc && gwc.gmcp && gwc.gmcp.data && gwc.gmcp.data.character && gwc.gmcp.data.character.vitals) {
+          payload = gwc.gmcp.data.character.vitals;
+        }
+      } catch (e7) {}
+    }
+
+    if (window.GenesisVitals && window.GenesisVitals.onGMCPVitals) {
+      window.GenesisVitals.onGMCPVitals(payload || {});
+    }
+  })();
 } catch (e) {
   try {
-    gwc.output.append("[GVitals GMCP ERROR] " + e.name + ": " + e.message, "#ff6666");
+    gwc.output.append("[GVitals Output ERROR] " + e.name + ": " + e.message, "#ff6666");
   } catch (ignore) {}
 }
