@@ -14,9 +14,9 @@ In game Steps
 
 #1 Type package install
 
-#2 navigate to where ever you downloaded the web package to and select it.
+#2 Navigate to where ever you downloaded the web package to and select it.
 
-#3 One installed type gvitals, quest, ginv (probably can jsut type givtals and it will do the rest)
+#3 Once installed type gvitals, quest, ginv (probably can jsut type givtals and it will do the rest)
 
 alias commands
 --------------
