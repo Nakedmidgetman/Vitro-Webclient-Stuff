@@ -1,14 +1,18 @@
 /*
-Genesis Inventory Capture Trigger v78
+Trigger
+Name: Inventory Capture
 Type: regexp
-Pattern:
-^(You are (?:wearing|wielding|holding|carrying|in possession of).*)$
+Pattern: ^(You are (?:wearing|wielding|holding|carrying|in possession of).*)$
+
+Alias(s) Required:
+ - ginv
 
 Purpose:
-- Backup capture for direct inventory output lines.
-- The main auto-refresh watcher is installed by the ginv alias itself.
-- This avoids relying on a broad ^(.*)$ trigger.
+ - Captures Genesis inventory output lines while ginv is refreshing.
+ - Does not open or select the Inventory tab by itself.
+ - Safe companion trigger for the ginv alias.
 */
+
 
 try {
   var line = "";
