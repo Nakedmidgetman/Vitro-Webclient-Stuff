@@ -25,10 +25,15 @@ In game Steps
 alias commands
 --------------
 #2 ghunt    - Very powerful auto hunting script. 
+
 #3 quest    - Quest Tracker  (It's pretty awesome) 
+
 #4 gvitals  - Improved? vital bars
+
 #4 gloot    - better looting system. Also pretty neat)
+
 #5 ka       - Kill all alias. Type ka help
+
 #6 ginv     - Inventory Panel with blacklist feature (No need to see your guild item, or 5000 herbs, or some of your autoloads/flavor gear)
 
 Coming soon
