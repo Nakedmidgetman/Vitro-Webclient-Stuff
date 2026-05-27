@@ -6,21 +6,10 @@ Type: Javascript
 Trigger(s) Required:
  -Target Counter
 
-
-
 Kill All
 Alias: ka
 
-Final setup:
-  Alias:
-    ka
 
-  Required Trigger(s):
-    Target Counter
-
-You can delete/disable old aliases:
-  target
-  kaskill
 
 Commands:
   ka help
