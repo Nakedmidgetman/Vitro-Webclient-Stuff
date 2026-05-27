@@ -1,30 +1,35 @@
+try {
 /*
-  Genesis Webclient Auto-Loot Helper
-  Alias pattern:
-    gloot
+Alias
+Pattern: gloot
+Type: Javascript
 
-  Required trigger:
-  Gloot Kill Trigger
+Trigger(s) Required:
+ - Gloot Kill Trigger
 
-  Commands:
-    gloot help
-    gloot on
-    gloot off
-    gloot auto on
-    gloot auto off
-    gloot run
-    gloot delay 300
-    gloot corpse first
-    gloot corpse all
-    gloot status
-    gloot reset
-    gloot add <command>
-    gloot remove <number>
-    gloot list
+Optional Alias(s):
+ - package
 
-  Updated:
-  - Removed function-in-loop warning from runLoot().
+Commands:
+ - gloot
+ - gloot help
+ - gloot on
+ - gloot off
+ - gloot auto on
+ - gloot auto off
+ - gloot run
+ - gloot delay 300
+ - gloot corpse first
+ - gloot corpse all
+ - gloot status
+ - gloot reset
+ - gloot add <command>
+ - gloot remove <number>
+ - gloot list
+ - gloot backup
+ - gloot restore
 */
+
 
 (function () {
   var msgColor = "#d8b4ff";
@@ -436,11 +441,19 @@
 
     ensureData();
 
-    action = lower(args[1]);
-    a2 = args[2];
+    args = (typeof args !== "undefined" && args) ? args : {};
+
+    action = lower(args[1] || "");
+    a2 = args[2] || "";
     full = args["*"] || "";
 
-    if (!action || action === "help") {
+    if (!action) {
+      status();
+      append("Use `gloot help` for commands.");
+      return;
+    }
+
+    if (action === "help") {
       help();
       return;
     }
@@ -522,3 +535,10 @@
 
   dispatch();
 })();
+} catch (e) {
+  try {
+    gwc.output.append("[GWLoot ERROR] " + e.name + ": " + e.message, "#ff5555");
+  } catch (ignore) {
+    console.log("[GWLoot ERROR]", e);
+  }
+}
