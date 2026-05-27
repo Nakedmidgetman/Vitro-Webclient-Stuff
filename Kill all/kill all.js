@@ -1,4 +1,13 @@
 /*
+Alias
+Pattern: ka
+Type: Javascript
+
+Trigger(s) Required:
+ -Target Counter
+
+
+
 Kill All
 Alias: ka
 
