@@ -1,31 +1,39 @@
+
+
 /*
-  Genesis Webclient AutoHunter - Bottom Tab Version
-  Alias pattern:
-    ghunt
+Alias
+Pattern: ghunt
+Type: Javascript
 
-  Required triggers:
-    1. ghunt Look Line
-    2. ghunt Kill 
-    3. ghunt No Creature
+Trigger(s) Required:
+ - ghunt Look Line
+ - ghunt Kill
+ - ghunt No Creature
 
-    Optional Trigger;
-    Auto Restore - Restores tabbed windows and vitals
+Optional Trigger(s):
+ - Auto Restore
 
-  This does not use a mapper.
-  It uses saved manual paths and reverse-walks the path to return home.
+Guild Skill Behavior:
+ - If no guild skill is set:
+     kill <target>
+     kill second <target>
+     kill third <target>
+ - If a guild skill is set, the first attack becomes:
+     <skill> <target>
+     kill second <target>
+     kill third <target>
+ - Example with cdonk:
+     cdonk dewar
+     kill second dewar
+     kill third dewar
 
-  Updated:
-  - Better multi-mob line parsing.
-  - Handles lines like:
-      A ghastly disjointed male dewar, a grim disjointed male dewar and a depressed menacing female dewar.
-    as 3 dewar.
-  - Adds kill mode:
-      ghunt killmode single
-      ghunt killmode all
-  - Adds guild skill support:
-      ghunt guildskill add cdonk
-  - v99: AutoHunter tracker docks into the bottom tab section instead of using a popout window.
+Updated:
+ - Full rewrite from current ghunt source.
+ - Guild skill now replaces only the first kill command.
+ - Guild skill is no longer sent separately before the kill sequence.
+ - Extra guild skills are preserved in storage/listing, but only the first one is used as the opener.
 */
+
 
 (function () {
   var aliasName = "ghunt";
@@ -826,23 +834,28 @@
     append("Guild skills: " + (d.guildSkills.length ? d.guildSkills.join(", ") : "none"));
   }
 
-  function sendGuildSkillsThen(callback) {
+  function openerCommand(target) {
     var d = ensureData();
+    var skill;
 
-    function sendSkillAt(index) {
-      if (index >= d.guildSkills.length) {
-        callback();
-        return;
-      }
-
-      sendCommand(d.guildSkills[index]);
-
-      addTimer(setTimeout(function () {
-        sendSkillAt(index + 1);
-      }, d.delay.guildskill));
+    if (!d.guildSkills.length) {
+      return killCommand(target, 1);
     }
 
-    sendSkillAt(0);
+    /*
+      Guild skill replaces the first kill command only.
+      Example:
+        cdonk dewar
+        kill second dewar
+        kill third dewar
+    */
+    skill = lower(d.guildSkills[0]);
+
+    if (!skill) {
+      return killCommand(target, 1);
+    }
+
+    return skill + " " + target;
   }
 
   function pathAdd(name, steps) {
@@ -992,6 +1005,7 @@
 
   function sendNextKill(target, count, index, delay) {
     var st = getState();
+    var cmd;
 
     if (!st.enabled || st.paused) {
       return;
@@ -1001,7 +1015,13 @@
       return;
     }
 
-    sendCommand(killCommand(target, index));
+    if (index === 1) {
+      cmd = openerCommand(target);
+    } else {
+      cmd = killCommand(target, index);
+    }
+
+    sendCommand(cmd);
 
     if (index < count) {
       addTimer(setTimeout(function () {
@@ -1037,11 +1057,17 @@
 
     updateHUD();
 
-    append("Attacking " + actualCount + " tracked " + target + " with kill mode " + d.killMode + ".");
+    append(
+      "Attacking " +
+      actualCount +
+      " tracked " +
+      target +
+      " with kill mode " +
+      d.killMode +
+      (d.guildSkills.length ? ". Opener: " + d.guildSkills[0] + " " + target + "." : ".")
+    );
 
-    sendGuildSkillsThen(function () {
-      sendNextKill(target, actualCount, 1, d.delay.attack);
-    });
+    sendNextKill(target, actualCount, 1, d.delay.attack);
 
     addTimer(setTimeout(function () {
       var st = getState();
@@ -1410,7 +1436,7 @@
     output += "Kills: " + d.kills + "\n";
     output += "Runs: " + d.runs + "\n";
     output += "Kill mode: " + d.killMode + "\n";
-    output += "Guild skills: " + (d.guildSkills.length ? d.guildSkills.join(", ") : "none") + "\n";
+    output += "Opener skill: " + (d.guildSkills.length ? d.guildSkills[0] : "none") + "\n";
     output += "Loop: " + d.loop + "\n";
     output += "Return: " + d.returnHome + "\n";
     output += "Respawn minutes: " + d.respawnMinutes + "\n";
@@ -1431,7 +1457,7 @@
     output += "ghunt target rabbit,bunny          Set hunt targets.\n";
     output += "ghunt killmode single              Kill one mob at a time.\n";
     output += "ghunt killmode all                 Attack all counted mobs at once.\n";
-    output += "ghunt guildskill add cdonk         Add guild skill used before attacking.\n";
+    output += "ghunt guildskill add cdonk         Set opener skill used instead of first kill.\n";
     output += "ghunt guildskill remove cdonk      Remove guild skill.\n";
     output += "ghunt guildskill clear             Clear guild skills.\n";
     output += "ghunt guildskill list              List guild skills.\n";
@@ -1453,7 +1479,7 @@
     output += "ghunt respawn 10                   Set respawn wait in minutes.\n";
     output += "ghunt delay scan 1000              Set scan delay in ms.\n";
     output += "ghunt delay attack 700             Set attack command delay in ms.\n";
-    output += "ghunt delay guildskill 700         Set guild skill command delay in ms.\n";
+    output += "ghunt delay guildskill 700         Legacy setting; opener now uses attack delay.\n";
     output += "ghunt delay move 1800              Set movement delay in ms.\n";
     output += "ghunt delay return 1800            Set return movement delay in ms.\n";
     output += "ghunt delay killwait 18000         Set kill timeout in ms.\n";
@@ -1463,7 +1489,7 @@
     output += "Example:\n";
     output += "ghunt target dewar\n";
     output += "ghunt killmode all\n";
-    output += "ghunt guildskill add cdonk\n";
+    output += "ghunt guildskill add cdonk         Then attacks as: cdonk target, kill second target, etc.\n";
     output += "ghunt path add dewarpath s, w, n\n";
     output += "ghunt path use dewarpath\n";
     output += "ghunt loop off\n";
