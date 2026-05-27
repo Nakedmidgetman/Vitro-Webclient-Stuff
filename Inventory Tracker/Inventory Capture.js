@@ -1,14 +1,18 @@
 /*
-Genesis Inventory Capture Safe Trigger v72
+Genesis Inventory Capture Trigger v78
+Type: regexp
 Pattern:
 ^(You are (?:wearing|wielding|holding|carrying|in possession of).*)$
 
-REQUIRED ALIAS(s): Inventory Tracker
+Purpose:
+- Backup capture for direct inventory output lines.
+- The main auto-refresh watcher is installed by the ginv alias itself.
+- This avoids relying on a broad ^(.*)$ trigger.
 */
 
-var line = "";
-
 try {
+  var line = "";
+
   if (typeof args !== "undefined") {
     if (typeof args["*"] !== "undefined") {
       line = String(args["*"]);
