@@ -9,7 +9,7 @@ to fit in tabs with other stuff. I'll eventually try and give credit to everyone
 Use the package script alias that can be found here. (This one is improved compared to the other one thats out there. This ones a bit safer by not installing every trigger/alias at once. With all the testing and updating ive been doing 
 i had the original one mess a time or 2 and i had to backtrack on work because i ddint realize it missed something so this one's a bit safer and a tad bit slower when installing.)
 
-Once you have the package alias setup download Vitro's Web Package
+Once you have the package alias setup download Vitro's All-in-One package
 
 In game Steps
 --------------
