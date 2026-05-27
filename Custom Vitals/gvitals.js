@@ -1,44 +1,118 @@
 /*
-Genesis GVitals v94
-Alias value/pattern: gvitals
+Alias
+Pattern: gvitals
+Type: Javascript
 
-Required Trigger: Gvitals Output
+Trigger(s) Required:
+ - Gvitals Output
 
-OPTIONAL TRIGGER:
-Auto Restore - Auto loads tabbed stuff and vitals.
+Optional Trigger(s):
+ - Auto Restore
 
 Commands:
-  gvitals
-  gvitals unlock
-  gvitals lock
-  gvitals snap
-  gvitals reset
-  gvitals off
-  gvitals status
+ - gvitals
+ - gvitals show
+ - gvitals hide
+ - gvitals unlock
+ - gvitals lock
+ - gvitals snap
+ - gvitals reset
+ - gvitals status
+ - gvitals help
+
+ 
 */
 
 try {
   (function () {
-    var VERSION = "94.0.0";
-    var STORAGE_KEY = "GenesisGVitalsPositionV94";
+    var VERSION = "125.0.0-resize-help-hide-native";
+    var STORAGE_KEY = "GenesisGVitalsGMCPOnlyV120";
+
+    var HEALTH_PHRASES = {
+      "at death's door": 1,
+      "barely alive": 2,
+      "terribly hurt": 3,
+      "in a very bad shape": 4,
+      "in agony": 5,
+      "in a bad shape": 6,
+      "very hurt": 7,
+      "suffering": 8,
+      "hurt": 9,
+      "aching": 10,
+      "somewhat hurt": 11,
+      "slightly hurt": 12,
+      "sore": 13,
+      "feeling well": 14,
+      "feeling very well": 15
+    };
+
+    /*
+      Conservative defaults for non-health vitals.
+      These may be adjusted later if you provide exact Genesis level lists for them.
+    */
+    var FATIGUE_PHRASES = {
+      "extremely exhausted": 1,
+      "very exhausted": 2,
+      "exhausted": 3,
+      "somewhat exhausted": 4,
+      "slightly exhausted": 5,
+      "extremely tired": 6,
+      "very tired": 7,
+      "tired": 8,
+      "somewhat tired": 9,
+      "slightly tired": 10,
+      "extremely weary": 11,
+      "very weary": 12,
+      "weary": 13,
+      "somewhat weary": 14,
+      "slightly weary": 15,
+      "slightly alert": 16,
+      "somewhat alert": 17,
+      "alert": 18,
+      "very alert": 19,
+      "extremely alert": 20
+    };
+
+    var MANA_PHRASES = {
+      "devoid of vigour": 1,
+      "almost devoid of vigour": 2,
+      "very low on vigour": 3,
+      "low on vigour": 4,
+      "somewhat low on vigour": 5,
+      "half full of vigour": 6,
+      "somewhat full of vigour": 7,
+      "full of vigour": 8,
+      "in full vigour": 9
+    };
 
     function out(msg, color) {
       try {
         gwc.output.append("[GVitals] " + String(msg), color || "#88ccff");
       } catch (e) {
-        try { console.log("[GVitals] " + msg); } catch (e2) {}
+        try { console.log("[GVitals] " + msg); } catch (ignore) {}
       }
     }
 
     function clean(text) {
       return String(text || "")
-        .replace(/\x1b\[[0-9;]*m/g, "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
         .replace(/\s+/g, " ")
         .replace(/^\s+|\s+$/g, "");
     }
 
     function lower(text) {
       return clean(text).toLowerCase();
+    }
+
+    function clampPct(n) {
+      n = Number(n);
+      if (!isFinite(n)) return null;
+      if (n < 0) n = 0;
+      if (n > 100) n = 100;
+      return Math.round(n);
     }
 
     function getArgs() {
@@ -57,87 +131,13 @@ try {
             return parts;
           }
 
-          if (typeof args["*"] !== "undefined" && String(args["*"]).length) {
-            raw = String(args["*"]);
-          } else if (typeof args[0] !== "undefined" && String(args[0]).length) {
-            raw = String(args[0]);
-          }
+          if (typeof args["*"] !== "undefined" && String(args["*"]).length) raw = String(args["*"]);
+          else if (typeof args[0] !== "undefined" && String(args[0]).length) raw = String(args[0]);
         }
       } catch (e) {}
 
       raw = String(raw || "").replace(/^gvitals\b/i, "").trim();
       return raw ? raw.split(/\s+/) : [];
-    }
-
-    function ensureUserdata() {
-      try {
-        gwc.userdata = gwc.userdata || {};
-        gwc.userdata.gvitals = gwc.userdata.gvitals || {};
-        return gwc.userdata.gvitals;
-      } catch (e) {
-        return {};
-      }
-    }
-
-    function readLocalPosition() {
-      try {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-
-        var obj = JSON.parse(raw);
-        if (
-          obj &&
-          isFinite(Number(obj.left)) &&
-          isFinite(Number(obj.top)) &&
-          isFinite(Number(obj.width))
-        ) {
-          return {
-            left: Number(obj.left),
-            top: Number(obj.top),
-            width: Number(obj.width),
-            locked: obj.locked !== false
-          };
-        }
-      } catch (e) {}
-
-      return null;
-    }
-
-    function writeLocalPosition(pos) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
-      } catch (e) {}
-    }
-
-    function clearLocalPosition() {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch (e) {}
-    }
-
-    function savePositionToStores(lockIt) {
-      var bar = document.getElementById("genesisVitalsBar");
-      var ud = ensureUserdata();
-      var rect;
-      var pos;
-
-      if (!bar) return;
-
-      rect = bar.getBoundingClientRect();
-
-      pos = {
-        left: Math.round(rect.left),
-        top: Math.round(rect.top),
-        width: Math.round(rect.width),
-        locked: lockIt ? true : (ud.locked !== false)
-      };
-
-      ud.left = pos.left;
-      ud.top = pos.top;
-      ud.width = pos.width;
-      ud.locked = pos.locked;
-
-      writeLocalPosition(pos);
     }
 
     function state() {
@@ -146,8 +146,18 @@ try {
 
       s.version = VERSION;
       s.enabled = s.enabled !== false;
-      s.timer = s.timer || null;
-
+      s.visible = s.visible !== false;
+      s.lastPayload = s.lastPayload || {};
+      s.refreshTimer = s.refreshTimer || null;
+      s.lastUpdate = s.lastUpdate || 0;
+      s.last = s.last || {
+        healthPct: 100,
+        fatiguePct: 100,
+        manaPct: 100,
+        foodPct: 100,
+        drinkPct: 100,
+        intoxicationPct: 0
+      };
       s.drag = s.drag || {
         active: false,
         resize: false,
@@ -157,15 +167,6 @@ try {
         startTop: 0,
         startWidth: 0
       };
-
-      s.last = s.last || {
-        healthPct: 100,
-        fatiguePct: 100,
-        manaPct: 100,
-        foodPct: 100,
-        drinkPct: 100
-      };
-
       s.raw = s.raw || {
         health: "",
         fatigue: "",
@@ -178,490 +179,279 @@ try {
       return s;
     }
 
-    function subscribeGMCP() {
+    function readSaved() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return {};
+    }
+
+    function writeSaved(obj) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(obj || {}));
+      } catch (e) {}
+    }
+
+    function percentFromBracket(text, maxDefault) {
+      var matches;
+      var i;
+      var m;
+      var n;
+      var d;
+
+      text = clean(text);
+      matches = text.match(/\[(\d+)\s*\/\s*(\d+)\]/g);
+
+      if (!matches || !matches.length) return null;
+
+      /*
+        Use the last bracket marker. Genesis examples can show translated helpers
+        like "very hurt [9/15] [7/15]"; the last value is the corrected/real one.
+      */
+      for (i = matches.length - 1; i >= 0; i--) {
+        m = matches[i].match(/\[(\d+)\s*\/\s*(\d+)\]/);
+        if (!m) continue;
+
+        n = parseInt(m[1], 10);
+        d = parseInt(m[2], 10);
+
+        if (isFinite(n) && isFinite(d) && d > 0) {
+          return clampPct((n / d) * 100);
+        }
+      }
+
+      return null;
+    }
+
+    function percentFromMap(text, map, maxLevel) {
+      var t = lower(text);
+      var keys = [];
+      var key;
+      var i;
+
+      for (key in map) {
+        if (map.hasOwnProperty(key)) keys.push(key);
+      }
+
+      keys.sort(function (a, b) {
+        return b.length - a.length;
+      });
+
+      for (i = 0; i < keys.length; i++) {
+        key = keys[i];
+        if (t.indexOf(key) !== -1) {
+          return clampPct((map[key] / maxLevel) * 100);
+        }
+      }
+
+      return null;
+    }
+
+    function percentFromText(kind, value) {
+      var text = clean(value);
+      var pct;
+
+      if (!text) return null;
+
+      pct = percentFromBracket(text);
+      if (pct !== null) return pct;
+
+      if (kind === "health") return percentFromMap(text, HEALTH_PHRASES, 15);
+      if (kind === "fatigue") return percentFromMap(text, FATIGUE_PHRASES, 20);
+      if (kind === "mana") return percentFromMap(text, MANA_PHRASES, 9);
+
+      /*
+        Food/drink/intoxication level lists are not fully known here.
+        If Genesis gives [x/y], the bracket parser above handles it.
+        Otherwise use simple text fallbacks.
+      */
+      if (kind === "food") {
+        if (/starving|famished|hungry/.test(lower(text))) return 10;
+        if (/could eat|some more|a little more/.test(lower(text))) return 50;
+        if (/full|too full|barely eat|cannot eat|no more/.test(lower(text))) return 100;
+      }
+
+      if (kind === "drink") {
+        if (/parched|dehydrated|thirsty/.test(lower(text))) return 10;
+        if (/could drink|some more|a little more/.test(lower(text))) return 50;
+        if (/full|drunk your fill|barely drink|cannot drink|no more/.test(lower(text))) return 100;
+      }
+
+      if (kind === "intoxication") {
+        if (/sober|not intoxicated|clear headed/.test(lower(text))) return 0;
+        if (/slightly|tipsy/.test(lower(text))) return 25;
+        if (/drunk|intoxicated/.test(lower(text))) return 65;
+        if (/wasted|plastered|unconscious/.test(lower(text))) return 100;
+      }
+
+      return null;
+    }
+
+    function mergePayload(payload) {
+      var s = state();
+      var keys = ["health", "fatigue", "mana", "food", "drink", "intoxication"];
+      var i;
+      var key;
+      var val;
+      var pct;
+
+      if (!payload || typeof payload !== "object") return false;
+
+      for (i = 0; i < keys.length; i++) {
+        key = keys[i];
+
+        if (Object.prototype.hasOwnProperty.call(payload, key)) {
+          val = clean(payload[key]);
+          s.raw[key] = val;
+          s.lastPayload[key] = val;
+
+          pct = percentFromText(key, val);
+          if (pct !== null) {
+            if (key === "health") s.last.healthPct = pct;
+            if (key === "fatigue") s.last.fatiguePct = pct;
+            if (key === "mana") s.last.manaPct = pct;
+            if (key === "food") s.last.foodPct = pct;
+            if (key === "drink") s.last.drinkPct = pct;
+            if (key === "intoxication") s.last.intoxicationPct = pct;
+          }
+        }
+      }
+
+      s.lastUpdate = Date.now();
+      return true;
+    }
+
+    function gmcpVitals() {
+      var obj;
+
+      try {
+        obj = mud.gmcp["char.vitals"];
+        if (obj && typeof obj === "object") return obj;
+      } catch (e1) {}
+
+      try {
+        obj = mud.gmcp["Char.Vitals"];
+        if (obj && typeof obj === "object") return obj;
+      } catch (e2) {}
+
+      try {
+        obj = gwc.gmcp.data.char.vitals;
+        if (obj && typeof obj === "object") return obj;
+      } catch (e3) {}
+
+      try {
+        obj = gwc.gmcp.data.character.vitals;
+        if (obj && typeof obj === "object") return obj;
+      } catch (e4) {}
+
+      return {};
+    }
+
+    function sendGMCPCommand(command) {
+      /*
+        IMPORTANT:
+        Do NOT fall back to gwc.connection.send(command).
+        That sends the GMCP command as normal game text and Genesis replies:
+          What?
+      */
+
       try {
         if (typeof sendGMCP === "function") {
-          sendGMCP('Core.Supports.Add ["Char 1"]');
-          return;
+          sendGMCP(command);
+          return true;
         }
       } catch (e1) {}
 
       try {
         if (gwc && gwc.connection && typeof gwc.connection.sendGMCP === "function") {
-          gwc.connection.sendGMCP('Core.Supports.Add ["Char 1"]');
-          return;
+          gwc.connection.sendGMCP(command);
+          return true;
         }
       } catch (e2) {}
 
       try {
-        if (gwc && typeof gwc.sendGMCP === "function") {
-          gwc.sendGMCP('Core.Supports.Add ["Char 1"]');
-        }
-      } catch (e3) {}
-    }
-
-    function removeOldAttempts() {
-      var ids = [
-        "genesisVitalsBar",
-        "genesis-gvitals-floating-style-v94",
-        "genesis-gvitals-floating-style-v93",
-        "genesis-gvitals-floating-style-v92",
-        "genesis-gvitals-floating-style-v91",
-        "genesis-gvitals-floating-style-v90",
-        "genesis-gvitals-floating-style-v89",
-        "genesis-gvitals-floating-style-v88",
-        "genesis-gvitals-floating-style-v87",
-        "genesis-gvitals-overlay-style-v86",
-        "genesis-gvitals-overlay-style-v85",
-        "genesis-gvitals-native-style-v84",
-        "genesis-gvitals-style-v83",
-        "genesis-gvitals-style-v82",
-        "genesis-gvitals-style-v81",
-        "genesis-simple-vitals-style-v80"
-      ];
-
-      ids.forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.remove();
-      });
-
-      document.body.classList.remove("genesis-simple-vitals-enabled");
-      document.body.classList.remove("genesis-vitals-below-input");
-      document.body.classList.remove("genesis-vitals-custom-active");
-
-      var host = document.getElementById("statusbars");
-      if (host) {
-        host.classList.remove("gvitals-host");
-        host.classList.remove("gvitals-native-skin");
-        host.classList.remove("gvitals-overlay-host");
-
-        host.style.display = "";
-        host.style.visibility = "";
-        host.style.height = "";
-        host.style.minHeight = "";
-        host.style.maxHeight = "";
-        host.style.margin = "";
-        host.style.padding = "";
-        host.style.overflow = "";
-        host.style.position = "";
-        host.style.opacity = "";
-        host.style.pointerEvents = "";
-
-        Array.prototype.slice.call(host.children).forEach(function (child) {
-          child.style.opacity = "";
-          child.style.pointerEvents = "";
-        });
-      }
-    }
-
-    function hideNativeVitals() {
-      var host = document.getElementById("statusbars");
-      if (!host) return;
-
-      host.style.opacity = "0";
-      host.style.pointerEvents = "none";
-    }
-
-    function showNativeVitals() {
-      var host = document.getElementById("statusbars");
-      if (!host) return;
-
-      host.style.opacity = "";
-      host.style.pointerEvents = "";
-    }
-
-    function getNativeSection(id) {
-      var host = document.getElementById("statusbars");
-      if (!host) return null;
-      return host.querySelector("#" + id);
-    }
-
-    function getNativeText(id) {
-      var el = getNativeSection(id);
-      var textEl;
-
-      if (!el) return "";
-
-      textEl = el.querySelector(".text");
-      if (textEl) return clean(textEl.textContent || "");
-
-      return clean(el.textContent || "");
-    }
-
-    function getNativePercent(id) {
-      var el = getNativeSection(id);
-      var text = "";
-      var m;
-      var fill;
-      var styleWidth;
-
-      if (!el) return null;
-
-      text = clean(el.textContent || "");
-      m = text.match(/(\d+)\s*%/);
-      if (m) return Math.max(0, Math.min(100, parseInt(m[1], 10)));
-
-      fill = el.querySelector(".bar, .fill, .progress, div[style*='width']");
-      if (fill) {
-        styleWidth = fill.style && fill.style.width ? fill.style.width : "";
-        m = String(styleWidth).match(/(\d+)\s*%/);
-        if (m) return Math.max(0, Math.min(100, parseInt(m[1], 10)));
-      }
-
-      return null;
-    }
-
-    function findVitalsObject(obj, depth) {
-      var key;
-      var child;
-      var lowerKey;
-
-      if (!obj || typeof obj !== "object" || depth > 5) return null;
-
-      if (
-        Object.prototype.hasOwnProperty.call(obj, "health") ||
-        Object.prototype.hasOwnProperty.call(obj, "mana") ||
-        Object.prototype.hasOwnProperty.call(obj, "fatigue") ||
-        Object.prototype.hasOwnProperty.call(obj, "food") ||
-        Object.prototype.hasOwnProperty.call(obj, "drink")
-      ) {
-        return obj;
-      }
-
-      for (key in obj) {
-        if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
-
-        lowerKey = String(key).toLowerCase();
-
-        if (lowerKey === "vitals") {
-          child = obj[key];
-          if (child && typeof child === "object") return child;
-        }
-
-        child = findVitalsObject(obj[key], depth + 1);
-        if (child) return child;
-      }
-
-      return null;
-    }
-
-    function gmcpVitals() {
-      try {
-        if (
-          gwc.gmcp &&
-          gwc.gmcp.data &&
-          gwc.gmcp.data.character &&
-          gwc.gmcp.data.character.vitals
-        ) {
-          return gwc.gmcp.data.character.vitals;
-        }
-      } catch (e1) {}
-
-      try {
-        if (
-          gwc.gmcp &&
-          gwc.gmcp.data &&
-          gwc.gmcp.data.char &&
-          gwc.gmcp.data.char.vitals
-        ) {
-          return gwc.gmcp.data.char.vitals;
-        }
-      } catch (e2) {}
-
-      try {
-        if (gwc.gmcp && gwc.gmcp.data) {
-          return findVitalsObject(gwc.gmcp.data, 0) || {};
+        if (mud && typeof mud.sendGMCP === "function") {
+          mud.sendGMCP(command);
+          return true;
         }
       } catch (e3) {}
 
-      return {};
+      return false;
     }
 
-    function pctFromNumbers(text) {
-      var m;
-      text = clean(text);
+    function subscribeAndRequest() {
+      var sentSubscribe = sendGMCPCommand('Core.Supports.Add ["Char 1"]');
+      var sentRequest;
 
-      m = text.match(/\[(\d+)\s*\/\s*(\d+)\]/);
-      if (m) {
-        return Math.max(0, Math.min(100, Math.round((parseInt(m[1], 10) / parseInt(m[2], 10)) * 100)));
-      }
+      setTimeout(function () {
+        sentRequest = sendGMCPCommand('Char.Vitals.Get "All"');
 
-      return null;
-    }
-
-    function phrasePct(kind, text) {
-      text = lower(text);
-
-      if (!text) return null;
-
-      var numeric = pctFromNumbers(text);
-      if (numeric !== null) return numeric;
-
-      if (kind === "health") {
-        if (text.indexOf("death's door") !== -1) return 5;
-        if (text.indexOf("barely alive") !== -1) return 10;
-        if (text.indexOf("terribly hurt") !== -1) return 20;
-        if (text.indexOf("very bad shape") !== -1) return 25;
-        if (text.indexOf("in agony") !== -1) return 35;
-        if (text.indexOf("bad shape") !== -1) return 40;
-        if (text.indexOf("very hurt") !== -1) return 50;
-        if (text.indexOf("suffering") !== -1) return 55;
-        if (text.indexOf("somewhat hurt") !== -1) return 75;
-        if (text.indexOf("slightly hurt") !== -1) return 85;
-        if (text.indexOf("hurt") !== -1) return 60;
-        if (text.indexOf("aching") !== -1) return 70;
-        if (text.indexOf("sore") !== -1) return 90;
-        if (text.indexOf("feeling very well") !== -1) return 100;
-        if (text.indexOf("feeling well") !== -1) return 95;
-      }
-
-      if (kind === "fatigue") {
-        if (text.indexOf("extremely alert") !== -1) return 100;
-        if (text.indexOf("very alert") !== -1) return 95;
-        if (text.indexOf("alert") !== -1) return 85;
-        if (text.indexOf("slightly tired") !== -1) return 65;
-        if (text.indexOf("somewhat tired") !== -1) return 50;
-        if (text.indexOf("very tired") !== -1) return 20;
-        if (text.indexOf("tired") !== -1) return 35;
-        if (text.indexOf("exhausted") !== -1) return 5;
-      }
-
-      if (kind === "mana") {
-        if (text.indexOf("full vigour") !== -1) return 100;
-        if (text.indexOf("full vigor") !== -1) return 100;
-        if (text.indexOf("vigour") !== -1) return 100;
-        if (text.indexOf("vigor") !== -1) return 100;
-        if (text.indexOf("half") !== -1) return 50;
-        if (text.indexOf("very low") !== -1) return 20;
-        if (text.indexOf("low") !== -1) return 35;
-        if (text.indexOf("drained") !== -1) return 5;
-      }
-
-      if (kind === "food") {
-        if (text.indexOf("too full to eat") !== -1) return 100;
-        if (text.indexOf("too much for you") !== -1) return 100;
-        if (text.indexOf("eat no more") !== -1) return 100;
-        if (text.indexOf("barely eat more") !== -1) return 100;
-        if (text.indexOf("barely eat") !== -1) return 100;
-        if (text.indexOf("eat a little more") !== -1) return 65;
-        if (text.indexOf("eat a little") !== -1) return 75;
-        if (text.indexOf("eat some more") !== -1) return 45;
-        if (text.indexOf("eat quite a lot more") !== -1) return 25;
-        if (text.indexOf("eat a lot more") !== -1) return 15;
-        if (text.indexOf("starving") !== -1) return 0;
-        if (text.indexOf("full") !== -1) return 100;
-      }
-
-      if (kind === "drink") {
-        if (text.indexOf("too full to drink") !== -1) return 100;
-        if (text.indexOf("drunk your fill") !== -1) return 100;
-        if (text.indexOf("drink no more") !== -1) return 100;
-        if (text.indexOf("barely drink more") !== -1) return 100;
-        if (text.indexOf("barely drink") !== -1) return 100;
-        if (text.indexOf("drink a little more") !== -1) return 65;
-        if (text.indexOf("drink a little") !== -1) return 75;
-        if (text.indexOf("drink some more") !== -1) return 45;
-        if (text.indexOf("drink quite a lot more") !== -1) return 25;
-        if (text.indexOf("drink a lot more") !== -1) return 15;
-        if (text.indexOf("dehydrated") !== -1) return 0;
-        if (text.indexOf("full") !== -1) return 100;
-      }
-
-      return null;
-    }
-
-    function applyVitalsPayload(payload) {
-      var s = state();
-      var p;
-
-      if (!payload || typeof payload !== "object") return false;
-
-      if (payload.health !== undefined) {
-        s.raw.health = clean(payload.health);
-        p = phrasePct("health", s.raw.health);
-        if (p !== null) s.last.healthPct = p;
-      }
-
-      if (payload.fatigue !== undefined) {
-        s.raw.fatigue = clean(payload.fatigue);
-        p = phrasePct("fatigue", s.raw.fatigue);
-        if (p !== null) s.last.fatiguePct = p;
-      }
-
-      if (payload.mana !== undefined) {
-        s.raw.mana = clean(payload.mana);
-        p = phrasePct("mana", s.raw.mana);
-        if (p !== null) s.last.manaPct = p;
-      }
-
-      if (payload.food !== undefined) {
-        s.raw.food = clean(payload.food);
-        p = phrasePct("food", s.raw.food);
-        if (p !== null) s.last.foodPct = p;
-      }
-
-      if (payload.drink !== undefined) {
-        s.raw.drink = clean(payload.drink);
-        p = phrasePct("drink", s.raw.drink);
-        if (p !== null) s.last.drinkPct = p;
-      }
-
-      if (payload.intoxication !== undefined) {
-        s.raw.intoxication = clean(payload.intoxication);
-      }
-
-      return true;
-    }
-
-    function parseOutputLine(line) {
-      var s = state();
-      var text = lower(line);
-      var p;
-
-      if (!text) return false;
-
-      if (text.indexOf("you are physically ") !== -1) {
-        p = phrasePct("health", text);
-        if (p !== null) s.last.healthPct = p;
-
-        p = phrasePct("mana", text);
-        if (p !== null) s.last.manaPct = p;
-      }
-
-      if (text.indexOf("you feel ") !== -1) {
-        p = phrasePct("fatigue", text);
-        if (p !== null) s.last.fatiguePct = p;
-      }
-
-      if (text.indexOf("eat") !== -1 || text.indexOf("too much for you") !== -1) {
-        p = phrasePct("food", text);
-        if (p !== null) {
-          s.last.foodPct = p;
-          s.raw.food = text;
+        if (!sentSubscribe && !sentRequest) {
+          out("No real GMCP sender function was available. Using existing webclient GMCP cache/trigger only.", "#ffcc66");
         }
-      }
+      }, 250);
 
-      if (text.indexOf("drink") !== -1 || text.indexOf("drunk your fill") !== -1) {
-        p = phrasePct("drink", text);
-        if (p !== null) {
-          s.last.drinkPct = p;
-          s.raw.drink = text;
-        }
-      }
+      setTimeout(function () {
+        mergePayload(gmcpVitals());
+        render();
+      }, 750);
 
-      return true;
+      setTimeout(function () {
+        sendGMCPCommand('Char.Vitals.Get "All"');
+      }, 1500);
     }
 
-    function updateFromSources() {
-      var s = state();
-      var v = gmcpVitals();
-      var p;
-      var text;
 
-      applyVitalsPayload(v);
+    function readPosition() {
+      var saved;
 
-      p = getNativePercent("health");
-      if (p !== null) s.last.healthPct = p;
-      else {
-        text = getNativeText("health");
-        p = phrasePct("health", text);
-        if (p !== null) s.last.healthPct = p;
+      try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      } catch (e) {
+        saved = {};
       }
 
-      p = getNativePercent("fatigue");
-      if (p !== null) s.last.fatiguePct = p;
-      else {
-        text = getNativeText("fatigue");
-        p = phrasePct("fatigue", text);
-        if (p !== null) s.last.fatiguePct = p;
-      }
+      if (!isFinite(saved.left)) saved.left = 8;
+      if (!isFinite(saved.top)) saved.top = Math.max(0, window.innerHeight - 48);
+      if (!isFinite(saved.width)) saved.width = Math.max(420, window.innerWidth - 16);
+      if (saved.locked === undefined) saved.locked = true;
 
-      p = getNativePercent("mana");
-      if (p !== null) s.last.manaPct = p;
-      else {
-        text = getNativeText("mana");
-        p = phrasePct("mana", text);
-        if (p !== null) s.last.manaPct = p;
-      }
-
-      if (s.raw.food) {
-        p = phrasePct("food", s.raw.food);
-        if (p !== null) s.last.foodPct = p;
-      } else {
-        text = getNativeText("food");
-        p = phrasePct("food", text);
-        if (p !== null) s.last.foodPct = p;
-      }
-
-      if (s.raw.drink) {
-        p = phrasePct("drink", s.raw.drink);
-        if (p !== null) s.last.drinkPct = p;
-      } else {
-        text = getNativeText("drink");
-        p = phrasePct("drink", text);
-        if (p !== null) s.last.drinkPct = p;
-      }
-
-      return s.last;
+      return saved;
     }
 
-    function defaultPosition() {
-      var ud = ensureUserdata();
-      var local = readLocalPosition();
-      var status = document.getElementById("statusbars");
-      var main = document.getElementById("main");
+    function savePosition(pos) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pos || readPosition()));
+      } catch (e) {}
+    }
+
+    function currentPosition() {
+      var bar = document.getElementById("genesisGvitalsGMCP");
       var rect;
+      var pos;
 
-      if (local) {
-        ud.left = local.left;
-        ud.top = local.top;
-        ud.width = local.width;
-        ud.locked = local.locked;
-        return local;
-      }
+      if (!bar) return readPosition();
 
-      if (ud.left !== undefined && ud.top !== undefined && ud.width !== undefined) {
-        return {
-          left: Number(ud.left),
-          top: Number(ud.top),
-          width: Number(ud.width),
-          locked: ud.locked !== false
-        };
-      }
+      rect = bar.getBoundingClientRect();
+      pos = readPosition();
+      pos.left = Math.round(rect.left);
+      pos.top = Math.round(rect.top);
+      pos.width = Math.round(rect.width);
 
-      if (status) {
-        rect = status.getBoundingClientRect();
-        return {
-          left: Math.round(rect.left),
-          top: Math.round(rect.top),
-          width: Math.round(rect.width),
-          locked: true
-        };
-      }
-
-      if (main) {
-        rect = main.getBoundingClientRect();
-        return {
-          left: Math.round(rect.left),
-          top: Math.round(rect.bottom - 42),
-          width: Math.round(rect.width),
-          locked: true
-        };
-      }
-
-      return {
-        left: 0,
-        top: window.innerHeight - 80,
-        width: window.innerWidth,
-        locked: true
-      };
+      return pos;
     }
 
-    function setLockedVisual(locked) {
-      var bar = document.getElementById("genesisVitalsBar");
-      if (!bar) return;
+    function applyPosition(bar) {
+      var pos = readPosition();
 
-      if (locked) {
+      bar.style.left = Math.round(pos.left) + "px";
+      bar.style.top = Math.round(pos.top) + "px";
+      bar.style.width = Math.round(pos.width) + "px";
+      bar.style.right = "auto";
+      bar.style.bottom = "auto";
+
+      if (pos.locked) {
         bar.classList.add("gv-locked");
         bar.classList.remove("gv-unlocked");
       } else {
@@ -670,222 +460,289 @@ try {
       }
     }
 
-    function savePosition() {
-      savePositionToStores(true);
-      setLockedVisual(true);
-      out("Vitals position saved and locked.", "#80ff80");
+    function setLocked(locked) {
+      var pos = currentPosition();
+      var bar = document.getElementById("genesisGvitalsGMCP");
+
+      pos.locked = locked !== false;
+      savePosition(pos);
+
+      if (bar) applyPosition(bar);
     }
 
-    function snapPosition(saveIt) {
-      var bar = document.getElementById("genesisVitalsBar");
-      var status = document.getElementById("statusbars");
-      var main = document.getElementById("main");
-      var rect;
+    function snapToBottom(saveIt) {
+      var bar = ensureBar();
+      var pos = readPosition();
 
-      if (!bar) return;
+      pos.left = 8;
+      pos.top = Math.max(0, window.innerHeight - 48);
+      pos.width = Math.max(420, window.innerWidth - 16);
 
-      if (status) rect = status.getBoundingClientRect();
-      else if (main) rect = main.getBoundingClientRect();
-      else {
-        rect = {
-          left: 0,
-          top: window.innerHeight - 80,
-          width: window.innerWidth
-        };
-      }
+      if (saveIt !== false) savePosition(pos);
 
-      bar.style.left = Math.round(rect.left) + "px";
-      bar.style.top = Math.round(rect.top) + "px";
-      bar.style.width = Math.round(rect.width) + "px";
+      applyPosition(bar);
+      render();
+    }
 
-      if (saveIt) savePosition();
+    function bindDragResize(bar) {
+      if (!bar || bar.dataset.gvDragResizeBound === "1") return;
+      bar.dataset.gvDragResizeBound = "1";
+
+      bar.addEventListener("mousedown", function (event) {
+        var s = state();
+        var pos = readPosition();
+        var rect;
+
+        if (pos.locked) return;
+
+        if (event.target && (
+          event.target.id === "gvitalsLockBtn" ||
+          event.target.id === "gvitalsSnapBtn" ||
+          event.target.id === "gvitalsResizeHandle"
+        )) {
+          if (event.target.id !== "gvitalsResizeHandle") return;
+        }
+
+        rect = bar.getBoundingClientRect();
+
+        s.drag.resize = event.target && event.target.id === "gvitalsResizeHandle";
+        s.drag.active = !s.drag.resize;
+        s.drag.startX = event.clientX;
+        s.drag.startY = event.clientY;
+        s.drag.startLeft = rect.left;
+        s.drag.startTop = rect.top;
+        s.drag.startWidth = rect.width;
+
+        if (s.drag.resize) {
+          bar.classList.add("gv-resizing");
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+      });
+
+      document.addEventListener("mousemove", function (event) {
+        var s = state();
+        var left;
+        var top;
+        var width;
+
+        if (!s.drag.active && !s.drag.resize) return;
+
+        if (s.drag.resize) {
+          width = s.drag.startWidth + (event.clientX - s.drag.startX);
+          if (width < 360) width = 360;
+          if (width > window.innerWidth) width = window.innerWidth;
+          bar.style.width = Math.round(width) + "px";
+
+          /*
+            Save during resize so the 250ms render loop does not re-apply
+            the old full-width saved position and snap the bar back.
+          */
+          var resizePos = readPosition();
+          resizePos.left = Math.round(bar.getBoundingClientRect().left);
+          resizePos.top = Math.round(bar.getBoundingClientRect().top);
+          resizePos.width = Math.round(width);
+          savePosition(resizePos);
+
+          event.preventDefault();
+          return;
+        }
+
+        left = s.drag.startLeft + (event.clientX - s.drag.startX);
+        top = s.drag.startTop + (event.clientY - s.drag.startY);
+
+        if (left < 0) left = 0;
+        if (top < 0) top = 0;
+        if (left > window.innerWidth - 160) left = window.innerWidth - 160;
+        if (top > window.innerHeight - 36) top = window.innerHeight - 36;
+
+        bar.style.left = Math.round(left) + "px";
+        bar.style.top = Math.round(top) + "px";
+        bar.style.right = "auto";
+        bar.style.bottom = "auto";
+
+        event.preventDefault();
+      });
+
+      document.addEventListener("mouseup", function () {
+        var s = state();
+        var pos;
+
+        if (!s.drag.active && !s.drag.resize) return;
+
+        s.drag.active = false;
+        s.drag.resize = false;
+        bar.classList.remove("gv-resizing");
+
+        pos = currentPosition();
+        pos.locked = readPosition().locked === true;
+        savePosition(pos);
+      });
     }
 
     function installStyles() {
-      var old = document.getElementById("genesis-gvitals-floating-style-v94");
+      var old = document.getElementById("genesis-gvitals-gmcp-only-style");
+      var style;
+
       if (old) old.remove();
 
-      var style = document.createElement("style");
-      style.id = "genesis-gvitals-floating-style-v94";
-
+      style = document.createElement("style");
+      style.id = "genesis-gvitals-gmcp-only-style";
       style.textContent =
-        "#genesisVitalsBar {" +
-        "  box-sizing: border-box !important;" +
-        "  position: fixed !important;" +
-        "  height: 36px !important;" +
-        "  margin: 0 !important;" +
-        "  padding: 2px 4px !important;" +
-        "  display: flex !important;" +
-        "  gap: 6px !important;" +
-        "  align-items: center !important;" +
-        "  overflow: visible !important;" +
-        "  font-family: monospace !important;" +
-        "  font-size: 10px !important;" +
-        "  line-height: 1 !important;" +
-        "  user-select: none !important;" +
+        "#genesisGvitalsGMCP {" +
+        " position: fixed;" +
+        " left: 8px;" +
+        " top: calc(100vh - 48px);" +
+        " right: auto;" +
+        " bottom: auto;" +
+        " width: calc(100vw - 16px);" +
+        " z-index: 20;" +
+        " box-sizing: border-box;" +
+        " min-height: 38px;" +
+        " padding: 3px 6px;" +
+        " display: flex;" +
+        " gap: 6px;" +
+        " align-items: center;" +
+        " background: rgba(4, 7, 10, 0.96);" +
+        " border-top: 1px solid rgba(136,204,255,0.55);" +
+        " font-family: monospace;" +
+        " font-size: 10px;" +
+        " color: #eee;" +
         "}" +
 
-        "#genesisVitalsBar.gv-locked {" +
-        "  z-index: 5 !important;" +
-        "  pointer-events: none !important;" +
-        "  outline: none !important;" +
-        "  cursor: default !important;" +
+"#genesisGvitalsGMCP.gv-unlocked {" +
+        " outline: 2px dashed #88ccff;" +
+        " cursor: move;" +
+        " z-index: 900;" +
         "}" +
 
-        "#genesisVitalsBar.gv-unlocked {" +
-        "  z-index: 900 !important;" +
-        "  pointer-events: auto !important;" +
-        "  outline: 2px dashed #88ccff !important;" +
-        "  cursor: move !important;" +
+        "#genesisGvitalsGMCP.gv-locked {" +
+        " pointer-events: none;" +
         "}" +
 
-        "#genesisVitalsBar .gv-tool {" +
-        "  display: none;" +
-        "  position: absolute;" +
-        "  top: -24px;" +
-        "  height: 20px;" +
-        "  padding: 1px 8px;" +
-        "  font-family: monospace;" +
-        "  font-size: 11px;" +
-        "  color: #ffffff;" +
-        "  background: rgba(20, 35, 50, 0.95);" +
-        "  border: 1px solid #88ccff;" +
-        "  border-radius: 4px;" +
-        "  cursor: pointer;" +
-        "  z-index: 1000;" +
-        "  pointer-events: auto !important;" +
+        "#genesisGvitalsGMCP.gv-unlocked {" +
+        " pointer-events: auto;" +
         "}" +
 
-        "#genesisVitalsBar .gv-lock { right: 6px; }" +
-        "#genesisVitalsBar .gv-snap { right: 58px; }" +
+        "#genesisGvitalsGMCP .gv-control {" +
+        " display: none;" +
+        " position: absolute;" +
+        " top: -24px;" +
+        " height: 20px;" +
+        " padding: 1px 8px;" +
+        " font-family: monospace;" +
+        " font-size: 11px;" +
+        " color: #fff;" +
+        " background: rgba(20,35,50,0.96);" +
+        " border: 1px solid #88ccff;" +
+        " border-radius: 4px;" +
+        " cursor: pointer;" +
+        " pointer-events: auto;" +
+        "}" +
+        "#genesisGvitalsGMCP.gv-unlocked .gv-control { display: block; }" +
+        "#gvitalsLockBtn { right: 6px; }" +
+        "#gvitalsSnapBtn { right: 58px; }" +
+        "#gvitalsResizeHandle {" +
+        " display: none;" +
+        " position: absolute;" +
+        " right: -8px;" +
+        " top: 0;" +
+        " width: 22px;" +
+        " height: 100%;" +
+        " min-height: 38px;" +
+        " cursor: ew-resize;" +
+        " background: rgba(136,204,255,0.18);" +
+        " border-left: 1px solid #88ccff;" +
+        " pointer-events: auto;" +
+        "}" +
+        "#genesisGvitalsGMCP.gv-unlocked #gvitalsResizeHandle { display: block; }" +
 
-        "#genesisVitalsBar.gv-unlocked .gv-tool {" +
-        "  display: block;" +
+        "#statusbars.gvitals-native-hidden {" +
+        " display: none !important;" +
+        " visibility: hidden !important;" +
+        " opacity: 0 !important;" +
+        " height: 0 !important;" +
+        " min-height: 0 !important;" +
+        " max-height: 0 !important;" +
+        " overflow: hidden !important;" +
         "}" +
 
-        "#genesisVitalsBar .gv-resize {" +
-        "  display: none;" +
-        "  position: absolute;" +
-        "  right: -8px;" +
-        "  top: 0;" +
-        "  width: 22px;" +
-        "  height: 36px;" +
-        "  cursor: ew-resize;" +
-        "  background: rgba(136, 204, 255, 0.18);" +
-        "  border-left: 1px solid #88ccff;" +
-        "  pointer-events: auto !important;" +
+        "#genesisGvitalsGMCP.gv-resizing {" +
+        " transition: none !important;" +
         "}" +
 
-        "#genesisVitalsBar.gv-unlocked .gv-resize {" +
-        "  display: block;" +
+        "#genesisGvitalsGMCP .gv-card {" +
+        " flex: 1 1 0;" +
+        " min-width: 0;" +
+        " height: 31px;" +
+        " box-sizing: border-box;" +
+        " display: grid;" +
+        " grid-template-columns: 25px 54px minmax(70px,1fr);" +
+        " align-items: center;" +
+        " gap: 4px;" +
+        " padding: 2px 5px;" +
+        " border: 1px solid var(--gv-color);" +
+        " border-radius: 5px;" +
+        " background: rgba(0,0,0,0.48);" +
+        " overflow: hidden;" +
         "}" +
 
-        "#genesisVitalsBar .gv-card {" +
-        "  box-sizing: border-box !important;" +
-        "  flex: 1 1 0 !important;" +
-        "  min-width: 0 !important;" +
-        "  height: 31px !important;" +
-        "  display: grid !important;" +
-        "  grid-template-columns: 28px 48px minmax(100px, 1fr) !important;" +
-        "  align-items: center !important;" +
-        "  gap: 3px !important;" +
-        "  padding: 2px 5px !important;" +
-        "  background: rgba(4, 7, 10, 0.96) !important;" +
-        "  border: 1px solid var(--gv-color) !important;" +
-        "  border-radius: 5px !important;" +
-        "  color: #eeeeee !important;" +
-        "  overflow: hidden !important;" +
-        "  pointer-events: auto;" +
+        "#genesisGvitalsGMCP .gv-icon {" +
+        " width: 21px;" +
+        " height: 21px;" +
+        " border-radius: 50%;" +
+        " border: 2px solid var(--gv-color);" +
+        " display: flex;" +
+        " align-items: center;" +
+        " justify-content: center;" +
+        " color: var(--gv-color);" +
+        " text-shadow: 0 0 5px var(--gv-color);" +
+        " font-size: 12px;" +
         "}" +
 
-        "#genesisVitalsBar.gv-locked .gv-card {" +
-        "  pointer-events: none !important;" +
+        "#genesisGvitalsGMCP .gv-name {" +
+        " font-weight: bold;" +
+        " color: #fff;" +
+        " white-space: nowrap;" +
         "}" +
 
-        "#genesisVitalsBar .gv-icon {" +
-        "  box-sizing: border-box !important;" +
-        "  width: 22px !important;" +
-        "  height: 22px !important;" +
-        "  border-radius: 50% !important;" +
-        "  border: 2px solid var(--gv-color) !important;" +
-        "  display: flex !important;" +
-        "  align-items: center !important;" +
-        "  justify-content: center !important;" +
-        "  color: var(--gv-color) !important;" +
-        "  font-size: 12px !important;" +
-        "  text-shadow: 0 0 5px var(--gv-color) !important;" +
+        "#genesisGvitalsGMCP .gv-pct {" +
+        " font-size: 9px;" +
+        " color: var(--gv-color);" +
+        " white-space: nowrap;" +
         "}" +
 
-        "#genesisVitalsBar .gv-label {" +
-        "  min-width: 0 !important;" +
-        "  overflow: hidden !important;" +
+        "#genesisGvitalsGMCP .gv-bar {" +
+        " display: flex;" +
+        " gap: 3px;" +
+        " width: 100%;" +
+        " overflow: hidden;" +
         "}" +
 
-        "#genesisVitalsBar .gv-name {" +
-        "  color: #ffffff !important;" +
-        "  font-weight: bold !important;" +
-        "  font-size: 10px !important;" +
-        "  white-space: nowrap !important;" +
+        "#genesisGvitalsGMCP .gv-seg {" +
+        " flex: 1 1 0;" +
+        " min-width: 3px;" +
+        " height: 19px;" +
+        " border-radius: 3px;" +
+        " background: rgba(80,80,80,0.35);" +
         "}" +
 
-        "#genesisVitalsBar .gv-pct {" +
-        "  color: var(--gv-color) !important;" +
-        "  font-weight: bold !important;" +
-        "  font-size: 9px !important;" +
-        "  white-space: nowrap !important;" +
+        "#genesisGvitalsGMCP .gv-seg.on {" +
+        " background: var(--gv-color);" +
+        " box-shadow: 0 0 5px var(--gv-color);" +
         "}" +
 
-        "#genesisVitalsBar .gv-bar {" +
-        "  display: flex !important;" +
-        "  gap: 3px !important;" +
-        "  min-width: 0 !important;" +
-        "  width: 100% !important;" +
-        "  overflow: hidden !important;" +
-        "  align-items: center !important;" +
-        "}" +
-
-        "#genesisVitalsBar .gv-seg {" +
-        "  flex: 1 1 0 !important;" +
-        "  min-width: 3px !important;" +
-        "  max-width: none !important;" +
-        "  height: 19px !important;" +
-        "  border-radius: 3px !important;" +
-        "  background: rgba(60, 90, 70, 0.28) !important;" +
-        "}" +
-
-        "#genesisVitalsBar .gv-seg.on {" +
-        "  background: var(--gv-color) !important;" +
-        "  box-shadow: 0 0 5px var(--gv-color) !important;" +
-        "}" +
-
-        "#genesisVitalsBar .gv-health { --gv-color: #ff2d55; }" +
-        "#genesisVitalsBar .gv-fatigue { --gv-color: #ffd83d; }" +
-        "#genesisVitalsBar .gv-mana { --gv-color: #b56bff; }" +
-        "#genesisVitalsBar .gv-food { --gv-color: #ff9f1a; }" +
-        "#genesisVitalsBar .gv-drink { --gv-color: #28c7ff; }" +
-
-        "@media (max-width: 1450px) {" +
-        "  #genesisVitalsBar .gv-card {" +
-        "    grid-template-columns: 24px 44px minmax(60px, 1fr) !important;" +
-        "    gap: 3px !important;" +
-        "    padding: 2px 4px !important;" +
-        "  }" +
-        "}" +
-
-        "@media (max-width: 1000px) {" +
-        "  #genesisVitalsBar .gv-name {" +
-        "    font-size: 9px !important;" +
-        "  }" +
-        "  #genesisVitalsBar .gv-pct {" +
-        "    font-size: 8px !important;" +
-        "  }" +
-        "}";
-
+        "#genesisGvitalsGMCP .gv-health { --gv-color: #ff2d55; }" +
+        "#genesisGvitalsGMCP .gv-fatigue { --gv-color: #ffd83d; }" +
+        "#genesisGvitalsGMCP .gv-mana { --gv-color: #b56bff; }" +
+        "#genesisGvitalsGMCP .gv-food { --gv-color: #ff9f1a; }" +
+        "#genesisGvitalsGMCP .gv-drink { --gv-color: #28c7ff; }";
       document.head.appendChild(style);
     }
 
     function segments(percent) {
-      var total = 18;
+      var total = 15;
       var on = Math.round((Number(percent || 0) / 100) * total);
       var html = "";
       var i;
@@ -900,141 +757,37 @@ try {
       return html;
     }
 
-    function cardHtml(kind, icon, name, percent) {
-      percent = Math.max(0, Math.min(100, Number(percent || 0)));
+    function card(kind, icon, name, pct) {
+      pct = clampPct(pct);
+      if (pct === null) pct = 0;
 
       return (
         '<div class="gv-card gv-' + kind + '">' +
           '<div class="gv-icon">' + icon + '</div>' +
-          '<div class="gv-label">' +
+          '<div>' +
             '<div class="gv-name">' + name + '</div>' +
-            '<div class="gv-pct">' + percent + '%</div>' +
+            '<div class="gv-pct">' + pct + '%</div>' +
           '</div>' +
-          '<div class="gv-bar">' + segments(percent) + '</div>' +
+          '<div class="gv-bar">' + segments(pct) + '</div>' +
         '</div>'
       );
     }
 
-    function bindDragAndResize(bar) {
-      if (bar.dataset.gvDragBound === "1") return;
-      bar.dataset.gvDragBound = "1";
-
-      function isUnlocked() {
-        return ensureUserdata().locked === false;
-      }
-
-      function isResizeZone(event, rect) {
-        return event.clientX >= rect.right - 22;
-      }
-
-      bar.addEventListener("mousedown", function (event) {
-        var s = state();
-        var rect;
-        var resizeZone;
-
-        if (!isUnlocked()) return;
-
-        if (
-          event.target &&
-          event.target.classList &&
-          (event.target.classList.contains("gv-lock") || event.target.classList.contains("gv-snap"))
-        ) {
-          return;
-        }
-
-        rect = bar.getBoundingClientRect();
-        resizeZone = isResizeZone(event, rect);
-
-        s.drag.active = !resizeZone;
-        s.drag.resize = resizeZone;
-        s.drag.startX = event.clientX;
-        s.drag.startY = event.clientY;
-        s.drag.startLeft = rect.left;
-        s.drag.startTop = rect.top;
-        s.drag.startWidth = rect.width;
-
-        event.preventDefault();
-        event.stopPropagation();
-      });
-
-      document.addEventListener("mousemove", function (event) {
-        var s = state();
-        var nextLeft;
-        var nextTop;
-        var nextWidth;
-        var minWidth = 420;
-        var maxWidth = window.innerWidth;
-
-        if (!s.drag.active && !s.drag.resize) return;
-
-        if (s.drag.resize) {
-          nextWidth = s.drag.startWidth + (event.clientX - s.drag.startX);
-
-          if (nextWidth < minWidth) nextWidth = minWidth;
-          if (nextWidth > maxWidth) nextWidth = maxWidth;
-
-          bar.style.width = Math.round(nextWidth) + "px";
-          event.preventDefault();
-          return;
-        }
-
-        nextLeft = s.drag.startLeft + (event.clientX - s.drag.startX);
-        nextTop = s.drag.startTop + (event.clientY - s.drag.startY);
-
-        if (nextLeft < 0) nextLeft = 0;
-        if (nextTop < 0) nextTop = 0;
-        if (nextLeft > window.innerWidth - 120) nextLeft = window.innerWidth - 120;
-        if (nextTop > window.innerHeight - 36) nextTop = window.innerHeight - 36;
-
-        bar.style.left = Math.round(nextLeft) + "px";
-        bar.style.top = Math.round(nextTop) + "px";
-
-        event.preventDefault();
-      });
-
-      document.addEventListener("mouseup", function () {
-        var s = state();
-
-        if (s.drag.active || s.drag.resize) {
-          s.drag.active = false;
-          s.drag.resize = false;
-
-          /*
-            Important:
-            Save after every drag/resize so browser reload restores it,
-            even if user forgets to click lock.
-          */
-          savePositionToStores(false);
-        }
-      });
-    }
-
     function ensureBar() {
-      var bar = document.getElementById("genesisVitalsBar");
-      var pos;
-      var ud = ensureUserdata();
+      var bar = document.getElementById("genesisGvitalsGMCP");
 
       installStyles();
-      hideNativeVitals();
 
       if (!bar) {
         bar = document.createElement("div");
-        bar.id = "genesisVitalsBar";
+        bar.id = "genesisGvitalsGMCP";
         document.body.appendChild(bar);
       }
 
-      pos = defaultPosition();
-
-      if (isFinite(pos.left)) bar.style.left = pos.left + "px";
-      if (isFinite(pos.top)) bar.style.top = pos.top + "px";
-      if (isFinite(pos.width)) bar.style.width = pos.width + "px";
-
-      if (pos.locked !== undefined && ud.locked === undefined) {
-        ud.locked = pos.locked;
+      if (!(state().drag && (state().drag.active || state().drag.resize))) {
+        applyPosition(bar);
       }
-
-      bindDragAndResize(bar);
-      setLockedVisual(ud.locked !== false);
+      bindDragResize(bar);
 
       return bar;
     }
@@ -1042,185 +795,212 @@ try {
     function render() {
       var s = state();
       var bar;
-      var d;
-      var lockButton;
-      var snapButton;
 
-      if (s.enabled === false) return;
-      if (s.drag.active || s.drag.resize) return;
+      if (s.enabled === false || s.visible === false) return;
 
-      d = updateFromSources();
       bar = ensureBar();
 
       bar.innerHTML =
-        '<button class="gv-tool gv-snap" type="button">snap</button>' +
-        '<button class="gv-tool gv-lock" type="button">lock</button>' +
-        '<div class="gv-resize" title="Drag right edge to resize"></div>' +
-        cardHtml("health", "♥", "Health", d.healthPct) +
-        cardHtml("fatigue", "⚡", "Fatigue", d.fatiguePct) +
-        cardHtml("mana", "✦", "Mana", d.manaPct) +
-        cardHtml("food", "🍖", "Food", d.foodPct) +
-        cardHtml("drink", "💧", "Drink", d.drinkPct);
+        '<button id="gvitalsSnapBtn" class="gv-control" type="button">snap</button>' +
+        '<button id="gvitalsLockBtn" class="gv-control" type="button">lock</button>' +
+        '<div id="gvitalsResizeHandle" title="Drag to resize"></div>' +
+        card("health", "♥", "Health", s.last.healthPct) +
+        card("fatigue", "⚡", "Fatigue", s.last.fatiguePct) +
+        card("mana", "✦", "Mana", s.last.manaPct) +
+        card("food", "🍖", "Food", s.last.foodPct) +
+        card("drink", "💧", "Drink", s.last.drinkPct);
 
-      lockButton = bar.querySelector(".gv-lock");
-      snapButton = bar.querySelector(".gv-snap");
+      $("#gvitalsLockBtn").off("click.gvitals").on("click.gvitals", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        setLocked(true);
+        out("Locked and saved.", "#80ff80");
+      });
 
-      if (lockButton) {
-        lockButton.addEventListener("click", function (event) {
-          event.preventDefault();
-          event.stopPropagation();
-          savePosition();
-        });
-      }
-
-      if (snapButton) {
-        snapButton.addEventListener("click", function (event) {
-          event.preventDefault();
-          event.stopPropagation();
-          snapPosition(false);
-        });
-      }
+      $("#gvitalsSnapBtn").off("click.gvitals").on("click.gvitals", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        snapToBottom(true);
+        out("Snapped to bottom and saved.", "#80ff80");
+      });
     }
 
-    function startTimer() {
+
+    function startAutoRefresh() {
       var s = state();
 
-      if (s.timer) {
-        clearInterval(s.timer);
-      }
+      if (s.refreshTimer) clearInterval(s.refreshTimer);
 
-      s.timer = setInterval(function () {
-        var current = state();
-        if (current.enabled !== false && !current.drag.active && !current.drag.resize) {
-          render();
-        }
-      }, 1000);
+      s.refreshTimer = setInterval(function () {
+        /*
+          Do not send commands here. Just re-read the Genesis webclient's
+          existing GMCP cache and redraw from it.
+        */
+        mergePayload(gmcpVitals());
+        render();
+      }, 250);
+    }
+
+    function stopAutoRefresh() {
+      var s = state();
+
+      if (s.refreshTimer) {
+        clearInterval(s.refreshTimer);
+        s.refreshTimer = null;
+      }
     }
 
     function install() {
       var s = state();
 
       s.enabled = true;
+      s.visible = true;
+
+      mergePayload(gmcpVitals());
+      var nativeBars = document.getElementById("statusbars");
+      if (nativeBars) nativeBars.classList.add("gvitals-native-hidden");
+
+      ensureBar();
+      render();
+      startAutoRefresh();
+      subscribeAndRequest();
 
       window.GenesisVitals = window.GenesisVitals || {};
-      window.GenesisVitals.onOutputLine = function (line) {
-        parseOutputLine(line);
-        render();
-      };
+      window.GenesisVitals.version = VERSION;
       window.GenesisVitals.onGMCPVitals = function (payload) {
-        applyVitalsPayload(payload);
+        /*
+          Instant path: this is called by the Gvitals Output GMCP trigger.
+          The 250ms cache loop is only backup.
+        */
+        mergePayload(payload || gmcpVitals() || {});
         render();
       };
+      window.GenesisVitals.applyVitalsPayload = window.GenesisVitals.onGMCPVitals;
       window.GenesisVitals.render = render;
-      window.GenesisVitals.applyVitalsPayload = applyVitalsPayload;
+      window.GenesisVitals.subscribeAndRequest = subscribeAndRequest;
 
-      subscribeGMCP();
-      applyVitalsPayload(gmcpVitals());
+      out("Installed GMCP-only gvitals. It will use Char.Vitals GMCP if available.", "#80ff80");
+    }
 
+    function hide() {
+      var s = state();
+      var bar = document.getElementById("genesisGvitalsGMCP");
+
+      s.visible = false;
+      stopAutoRefresh();
+      if (bar) bar.style.display = "none";
+
+      var nativeBars = document.getElementById("statusbars");
+      if (nativeBars) nativeBars.classList.remove("gvitals-native-hidden");
+
+      out("Hidden.", "#ffcc66");
+    }
+
+    function show() {
+      state().visible = true;
+
+      var nativeBars = document.getElementById("statusbars");
+      if (nativeBars) nativeBars.classList.add("gvitals-native-hidden");
+
+      ensureBar().style.display = "flex";
+      startAutoRefresh();
+      subscribeAndRequest();
+      mergePayload(gmcpVitals());
       render();
-      startTimer();
+      out("Shown and requested fresh Char.Vitals.", "#80ff80");
+    }
 
-      out("Vitals installed. Position restores from localStorage. Use gvitals unlock to drag/resize.", "#80ff80");
+    function reset() {
+      var bar = document.getElementById("genesisGvitalsGMCP");
+      if (bar) bar.remove();
+
+      var nativeBars = document.getElementById("statusbars");
+      if (nativeBars) nativeBars.classList.remove("gvitals-native-hidden");
+
+      state().last = {
+        healthPct: 100,
+        fatiguePct: 100,
+        manaPct: 100,
+        foodPct: 100,
+        drinkPct: 100,
+        intoxicationPct: 0
+      };
+
+      show();
+      out("Reset.", "#80ff80");
     }
 
     function unlock() {
-      var ud = ensureUserdata();
-
-      ud.locked = false;
-
-      var pos = readLocalPosition();
-      if (pos) {
-        pos.locked = false;
-        writeLocalPosition(pos);
-      }
-
-      render();
-      setLockedVisual(false);
-      out("Vitals unlocked. Drag to move. Drag right edge to resize. Position autosaves.", "#ffcc66");
+      install();
+      setLocked(false);
+      out("Unlocked. Drag the bar to move it; drag the right edge to resize.", "#ffcc66");
     }
 
     function lock() {
-      savePosition();
+      setLocked(true);
+      out("Locked and saved.", "#80ff80");
     }
 
-    function resetPosition() {
-      var ud = ensureUserdata();
-      var bar = document.getElementById("genesisVitalsBar");
-
-      delete ud.left;
-      delete ud.top;
-      delete ud.width;
-      ud.locked = true;
-
-      clearLocalPosition();
-
-      if (bar) {
-        bar.style.left = "";
-        bar.style.top = "";
-        bar.style.width = "";
-      }
-
-      render();
-      snapPosition(true);
-      out("Vitals position reset, snapped, and saved.", "#80ff80");
-    }
-
-    function removeVitals() {
-      var s = state();
-
-      s.enabled = false;
-
-      if (s.timer) {
-        clearInterval(s.timer);
-        s.timer = null;
-      }
-
-      removeOldAttempts();
-      showNativeVitals();
-
-      out("GVitals removed. Native vitals restored. Saved position was kept.", "#ffcc66");
+    function snap() {
+      install();
+      snapToBottom(true);
+      out("Snapped to bottom and saved.", "#80ff80");
     }
 
     function status() {
-      var ud = ensureUserdata();
       var s = state();
-      var local = readLocalPosition();
+      var pos = readPosition();
+      var age = s.lastUpdate ? Math.round((Date.now() - s.lastUpdate) / 1000) + "s ago" : "never";
 
       out("Version: " + VERSION);
-      out("Native #statusbars found: " + !!document.getElementById("statusbars"));
-      out("Custom #genesisVitalsBar found: " + !!document.getElementById("genesisVitalsBar"));
-      out("Locked: " + (ud.locked !== false));
-      out("gwc.userdata left/top/width: " + [ud.left, ud.top, ud.width].join(" / "));
-      out("localStorage left/top/width: " + (local ? [local.left, local.top, local.width].join(" / ") : "none"));
-      out("Current pct: H " + s.last.healthPct + " | F " + s.last.fatiguePct + " | M " + s.last.manaPct + " | Food " + s.last.foodPct + " | Drink " + s.last.drinkPct);
-      out("Raw food/drink: '" + s.raw.food + "' / '" + s.raw.drink + "'");
+      out("Bar found: " + !!document.getElementById("genesisGvitalsGMCP"));
+      out("Position: left=" + pos.left + " top=" + pos.top + " width=" + pos.width + " locked=" + pos.locked);
+      out("Auto refresh running: " + !!s.refreshTimer);
+      out("Instant GMCP trigger installed: " + !!(window.GenesisVitals && window.GenesisVitals.onGMCPVitals));
+      out("Last GMCP update: " + age);
+      out("Pct: H " + s.last.healthPct + " | F " + s.last.fatiguePct + " | M " + s.last.manaPct + " | Food " + s.last.foodPct + " | Drink " + s.last.drinkPct);
+      out("Raw health: " + (s.raw.health || "(none)"));
+      out("Raw fatigue: " + (s.raw.fatigue || "(none)"));
+      out("Raw mana: " + (s.raw.mana || "(none)"));
+      out("Raw food/drink: " + (s.raw.food || "(none)") + " / " + (s.raw.drink || "(none)"));
+      out("Trying fresh GMCP request now, only if a real GMCP sender exists...");
+      subscribeAndRequest();
     }
 
     function help() {
       out("Commands:");
-      out("gvitals          install/restore saved position");
-      out("gvitals unlock   drag/resize mode; autosaves position");
-      out("gvitals lock     save current position and make click-through");
-      out("gvitals snap     snap to native statusbar area and save");
-      out("gvitals reset    clear saved position and snap again");
-      out("gvitals off      remove custom vitals");
-      out("gvitals status   show status");
+      out("gvitals          install/show and request fresh GMCP vitals");
+      out("gvitals show     show bar and request fresh GMCP vitals");
+      out("gvitals hide     hide bar");
+      out("gvitals unlock   enable drag/resize controls");
+      out("gvitals lock     lock and save the current position");
+      out("gvitals snap     snap to bottom and save");
+      out("Native Genesis vitals are hidden while custom gvitals is shown.");
+      out("gvitals reset    remove/recreate bar");
+      out("gvitals status   show debug and request fresh GMCP vitals");
+      out("gvitals help     show this help");
     }
 
     function dispatch() {
-      var parts = getArgs();
-      var cmd = lower(parts[0] || "");
+      var cmd = lower(getArgs()[0] || "");
 
-      state();
-      ensureUserdata();
-
-      if (!cmd || cmd === "on" || cmd === "setup" || cmd === "install" || cmd === "refresh") {
+      if (!cmd || cmd === "on" || cmd === "install" || cmd === "refresh") {
         install();
+        if (!cmd) help();
+        return;
+      }
+
+      if (cmd === "show") {
+        show();
+        return;
+      }
+
+      if (cmd === "hide" || cmd === "off") {
+        hide();
         return;
       }
 
       if (cmd === "unlock" || cmd === "drag" || cmd === "resize") {
-        install();
         unlock();
         return;
       }
@@ -1231,18 +1011,12 @@ try {
       }
 
       if (cmd === "snap") {
-        install();
-        snapPosition(true);
+        snap();
         return;
       }
 
       if (cmd === "reset") {
-        resetPosition();
-        return;
-      }
-
-      if (cmd === "off" || cmd === "remove" || cmd === "disable") {
-        removeVitals();
+        reset();
         return;
       }
 
@@ -1265,7 +1039,5 @@ try {
 } catch (e) {
   try {
     gwc.output.append("[GVitals ERROR] " + e.name + ": " + e.message, "#ff6666");
-  } catch (ignore) {
-    console.log("[GVitals ERROR]", e);
-  }
+  } catch (ignore) {}
 }
