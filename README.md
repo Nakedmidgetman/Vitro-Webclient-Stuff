@@ -1,3 +1,7 @@
+If you enjoy my work please leave me a praise in the Genesis Discord in the Genesis-Praise-Channel.
+-----------------------------------------------------------------------------------------------------------
+
+
 Credits: Some of the features in this package i didn't really create, but just combined into one and/or modified them somewhat. I personally don't like my alias/trigger list to be infinite so credits to the people who did the translator stuff
 Things I did create Quest Tracker, Custom Vitals, Kill All (although afterwards I saw that someone else made one and even used the same KA alias, but mines different lol), Gloot, Inventory Tracker, the custom layout where everything is attached nicely to the native comms window in tabs
 instead of having a million different pop up windows and all dependencies. Things I did not really 100% create. Package Manager (I improved on it), Translator stuff like imbuements, durability, stats, etc..I just combined them into one trigger, the Generic tracker (trax) I just modified it and restyled it
