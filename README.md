@@ -2,9 +2,8 @@ Credits: Some of the features in this package i didn't really create, but just c
 
 If you download Vitro's webpackage the QUEST script is included so no need to install it twice
 
-Use the package script alias that can be found here or other places.
-
-https://github.com/ex0sphere/GenesisMUD/blob/main/Triggers%20and%20Aliases/!%20IMPORTANT%20-%20Package%20Manager.js
+Use the package script alias that can be found here. (This one is improved compared to the other one thats out there. This ones a bit safer by not installing every trigger/alias at once. With all the testing and updating ive been doing 
+i had the original one mess a time or 2 and i had to backtrack on work because i ddint realize it missed something so this one's a bit safer and a tad bit slower when installing.)
 
 Once you have the package alias setup download Vitro's Web Package
 
