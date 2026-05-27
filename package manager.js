@@ -1,278 +1,652 @@
 /*
-AUTHOR: Faery
-Contains: 1 alias
+Updated/Improved by Vitro
+Original Author: Faery
 
-Lets you easily install packages with multiple triggers and aliases, as well as create your own packages.
 
-USAGE: 
-package create - create a .json package
-package download - install a .json package from your computer
-
+Alias
 Pattern: package
-Execute the following javascript: */
+Type: Javascript
 
-window.sessionToken = mud.gmcp['core.token'][0] + mud.gmcp['core.token'][1] + mud.gmcp['core.token'][2] + mud.gmcp['core.token'][3] + mud.gmcp['core.token'][4] + mud.gmcp['core.token'][5] + mud.gmcp['core.token'][6] + mud.gmcp['core.token'][7];
-let msgColor = "#B3EBF2"; //Edit default message color if you want to
-window.foundTriggers = [];
-window.foundAliases = [];
-if (args[1] !== "create" && args[1] !== "download") gwc.output.append("Syntax is <package create/download>", msgColor);
-if (args[1] === "create") createPopup();
-if (args[1] === "download") {
-    let inputElement = document.createElement("input");
-    inputElement.setAttribute("type", "file");
-    inputElement.setAttribute("accept", "application/json");
-    inputElement.addEventListener("change", handlePackageUpload);
-    inputElement.click();
-}
- 
-function createPopup() {
-    if (document.getElementById("popup")) document.getElementById("popup").remove();
-    const popup = Object.assign(document.createElement("div"), {
-        id: "popup",
-        style: `
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 350px; height: 400px; min-width: 327px; min-height: 150px;
-            background: rgba(0,0,0,.85); color: #d0d0d0; border: 1px solid #999; outline: none;
-            border-radius: 8px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 1000; resize: both; overflow: hidden; display: flex; flex-direction: column;`
-    });
-    popup.innerHTML = `
-        <div id="drag-area" style="height: 30px; width: 100%; position: absolute; top: 0; cursor: move;"></div>
-        <button id="close-popup" style="position: absolute; top: 15px; right: 15px; background: rgba(255,0,0,0.5); color: #d0d0d0; border: none; cursor: pointer; width: 16px; height: 16px; font-size: 12px; display: flex; align-items: center; justify-content: center;">X</button>
-        
-        <div id="popup-content" style="flex-grow: 1; display: flex; flex-direction: column; padding-top: 30px;">
-            <div style="text-align: center; margin-bottom: 10px;">
-                <button id="tab-triggers" class="tab-button" style="background: rgba(255,255,255,0.3);">Triggers</button>
-                <button id="tab-aliases" class="tab-button" style="background: rgba(255,255,255,0.1);">Aliases</button>
-            </div>
- 
-            <input type="text" id="search-bar" placeholder="Search..." style="margin-bottom: 10px; padding: 5px; width: calc(100% - 12px); background: rgba(255,255,255,0.1); border: 1px solid #999; outline: none; color: #d0d0d0;">
- 
-            <div id="tab-content" style="overflow-y: auto; padding-bottom: 50px; max-height: calc(100% - 130px); flex-grow: 1;"></div>
- 
-            <button id="create-package" style="position: absolute; bottom: 15px; right: 15px; padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px solid #999; outline: none; color: #d0d0d0;">Create Package</button>
-            <button id="popup-selectAll" style="position: absolute; bottom: 15px; left: 15px; padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px solid #999; outline: none; color: #d0d0d0;">Select All</button>
-            <button id="popup-reset" style="position: absolute; bottom: 15px; left: 130px; padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px solid #999; outline: none; color: #d0d0d0;">Reset</button>
-        </div>`;
-    document.body.appendChild(popup);
-    $("#search-bar").on("input", popupSearch);
- 
-    function popupSearch() {
-        const searchValue = $("#search-bar").val().toLowerCase();
-        $("#tab-content label").each(function() {
-            $(this).toggle($(this).text().toLowerCase().includes(searchValue));
-        });
+Commands:
+ - package create
+ - package install
+ - package help
+ - package debug
+
+Purpose:
+ - package create: fetches real Genesis aliases.json/triggers.json, lets you select items, and downloads a package.
+ - package install: installs aliases/triggers from a selected package JSON.
+ - package debug: shows detected character/token/source information.
+
+Required Trigger(s):
+ - None
+
+Required Alias(s):
+ - None
+*/
+
+try {
+  (function () {
+    var VERSION = "Genesis Package Manager v4 STRICT";
+    var MSG = "#B3EBF2";
+    var OK = "#80ff80";
+    var ERR = "#ff6666";
+    var WARN = "#ffcc66";
+
+    function out(msg, color) {
+      try {
+        gwc.output.append("[Package] " + String(msg), color || MSG);
+      } catch (e) {
+        try { console.log("[Package] " + msg); } catch (ignore) {}
+      }
     }
- 
-    function activateTab(tabId) {
-        $(".tab-button").css("background", "rgba(255,255,255,0.1)");
-        $(`#${tabId}`).css("background", "rgba(255,255,255,0.3)");
+
+    function clean(text) {
+      return String(text || "").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
     }
-    let offsetX, offsetY, isDragging = false;
-    $("#drag-area").off("mousedown").on("mousedown", function(e) {
-        isDragging = true;
-        const rect = popup.getBoundingClientRect();
-        offsetX = e.clientX - rect.left;
-        offsetY = e.clientY - rect.top;
-    });
-    $(document)
-        .off("mousemove").on("mousemove", function(e) {
-            if (isDragging) {
-                popup.style.left = `${e.clientX - offsetX}px`;
-                popup.style.top = `${e.clientY - offsetY}px`;
-                popup.style.transform = "none";
-            }
-        })
-        .off("mouseup").on("mouseup", function() {
-            isDragging = false;
-        });
-    new ResizeObserver(() => {
-        $("#tab-content").css("max-height", `${popup.getBoundingClientRect().height - 230}px`);
-    }).observe(popup);
- 
-    function saveCheckedState(listType) {
-        window.checkedStates[listType] = $("#tab-content input:checked").map(function() {
-            return this.value;
-        }).get();
+
+    function escapeHtml(text) {
+      return $("<div>").text(String(text || "")).html();
     }
- 
-    function restoreCheckedState(listType) {
-        $("#tab-content input").each(function() {
-            this.checked = window.checkedStates[listType].includes(this.value);
-        });
-    }
- 
-    function loadPopupChecklist(selector, listType) {
-        saveCheckedState(window.activeTab);
-        $("#tab-content").html(
-            $(selector).find(".list > *").map(function() {
-                return `<label style="display: block; color: #d0d0d0;">
-                            <input type="checkbox" value="${$(this).text()}" style="margin-right: 8px;">${$(this).text()}
-                        </label>`;
-            }).get().join("")
-        );
-        restoreCheckedState(listType);
-        window.activeTab = listType;
-    }
-    $("#tab-triggers").on("click", function() {
-        loadPopupChecklist("#triggers", "triggers");
-        activateTab("tab-triggers");
-        popupSearch();
-    });
-    $("#tab-aliases").on("click", function() {
-        loadPopupChecklist("#aliases", "aliases");
-        activateTab("tab-aliases");
-        popupSearch();
-    });
-    $("button")
-        .css("cursor", "pointer")
-        .hover(
-            function() {
-                $(this).css("opacity", "0.8");
-            },
-            function() {
-                $(this).css("opacity", "1");
-            }
-        );
-    $(document).off("click", "#popup-selectAll").on("click", "#popup-selectAll", function() {
-        $("#tab-content input[type='checkbox']").prop("checked", true);
-    });
-    $(document).off("click", "#create-package").on("click", "#create-package", function() {
-        $("#tab-triggers").click();
-        if (window.checkedStates.aliases.length) fetchData("aliases");
-        if (window.checkedStates.triggers.length) fetchData("triggers");
-        $("#close-popup").click();
-    });
-    $(document).off("click", "#popup-reset").on("click", "#popup-reset", function() {
-        $("#tab-content input[type='checkbox']").prop("checked", false);
-    });
-    $("#close-popup").on("click", function() {
-        popup.remove();
-    });
-    window.checkedStates = {
-        triggers: [],
-        aliases: []
-    };
-    window.activeTab = "triggers";
-    loadPopupChecklist("#triggers");
-}
- 
-function fetchData(type) {
-    gwc.output.append('Fetching ' + type + '...', msgColor);
-    $.ajax({
-        type: "GET",
-        beforeSend: (request) => {
-            request.setRequestHeader("GMCP-Token", window.sessionToken);
-        },
-        url: `https://www.genesismud.org/player_file/${encodeURIComponent(mud.gmcp['char.login'].name)}/${type}.json`,
-        success: (list) => {
-            let myList = JSON.parse(list);
-            let matchedItems = [];
-            let notFoundItems = [];
-            if (type === "triggers") {
-                matchedItems = window.checkedStates.triggers.filter(trigger => myList.some(item => item.name === trigger));
-                notFoundItems = window.checkedStates.triggers.filter(trigger => !myList.some(item => item.name === trigger));
-                window.foundTriggers = myList.filter(item => window.checkedStates.triggers.includes(item.name));
-                gwc.output.append('Added all specified triggers to the package.', msgColor);
-            }
-            if (type === "aliases") {
-                matchedItems = window.checkedStates.aliases.filter(alias => myList.some(item => item.value === alias));
-                notFoundItems = window.checkedStates.aliases.filter(alias => !myList.some(item => item.value === alias));
-                window.foundAliases = myList.filter(item => window.checkedStates.aliases.includes(item.value));
-                gwc.output.append('Added all specified aliases to the package.', msgColor);
-            }
-            if (notFoundItems.length) {
-                gwc.output.append(`Not found ${type}: ` + notFoundItems.join(", "), "red");
-                gwc.output.append('Please try again.', "red");
-            }
-            checkAndDownloadPackage();
-        },
-        error: (jqXHR, textStatus, errorThrown) => {
-            gwc.output.append(`Error fetching ${type}: ${textStatus} - ${errorThrown}`, "red");
+
+    function getArgText() {
+      try {
+        if (typeof args !== "undefined") {
+          if (typeof args["*"] !== "undefined") {
+            return clean(String(args["*"]).replace(/^package\s*/i, ""));
+          }
+          if (typeof args[1] !== "undefined") {
+            return clean(args[1]);
+          }
+          if (typeof args[0] !== "undefined") {
+            return clean(String(args[0]).replace(/^package\s*/i, ""));
+          }
         }
-    });
-}
- 
-function checkAndDownloadPackage() {
-    if (window.checkedStates.triggers.length && window.foundTriggers.length !== window.checkedStates.triggers.length) return;
-    if (window.checkedStates.aliases.length && window.foundAliases.length !== window.checkedStates.aliases.length) return;
-    gwc.output.append('Downloading package...', "green");
-    let packageData = {
-        triggers: window.foundTriggers,
-        aliases: window.foundAliases
-    };
-    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(packageData, null, 2));
-    let downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "package.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
-}
- 
-function handlePackageUpload(event) {
-    let file = event.target.files[0];
-    if (!file) return;
-    let reader = new FileReader();
-    reader.onload = function(e) {
+      } catch (e) {}
+      return "";
+    }
+
+    function getLoginName() {
+      try {
+        if (mud && mud.gmcp && mud.gmcp["char.login"] && mud.gmcp["char.login"].name) {
+          return clean(mud.gmcp["char.login"].name);
+        }
+      } catch (e1) {}
+
+      try {
+        if (gwc && gwc.gmcp && gwc.gmcp.data && gwc.gmcp.data.char && gwc.gmcp.data.char.login && gwc.gmcp.data.char.login.name) {
+          return clean(gwc.gmcp.data.char.login.name);
+        }
+      } catch (e2) {}
+
+      try {
+        if (gwc && gwc.gmcp && gwc.gmcp.data && gwc.gmcp.data.character && gwc.gmcp.data.character.login && gwc.gmcp.data.character.login.name) {
+          return clean(gwc.gmcp.data.character.login.name);
+        }
+      } catch (e3) {}
+
+      return "";
+    }
+
+    function getToken() {
+      var token = "";
+
+      /*
+        This intentionally mirrors the older working package alias:
+        mud.gmcp["core.token"][0] + ... + [7]
+      */
+      try {
+        if (mud && mud.gmcp && mud.gmcp["core.token"]) {
+          token =
+            String(mud.gmcp["core.token"][0] || "") +
+            String(mud.gmcp["core.token"][1] || "") +
+            String(mud.gmcp["core.token"][2] || "") +
+            String(mud.gmcp["core.token"][3] || "") +
+            String(mud.gmcp["core.token"][4] || "") +
+            String(mud.gmcp["core.token"][5] || "") +
+            String(mud.gmcp["core.token"][6] || "") +
+            String(mud.gmcp["core.token"][7] || "");
+        }
+      } catch (e1) {}
+
+      if (!token) {
         try {
-            let packageData = JSON.parse(e.target.result);
-            processDownloadedPackage(packageData);
-        } catch (error) {
-            gwc.output.append("Error reading package file: " + error.message, "red");
-        }
-    };
-    reader.readAsText(file);
-    gwc.output.append('Please wait patiently and refrain from interacting with your device until all data has been successfully uploaded.', msgColor);
-}
- 
-function processDownloadedPackage(packageData) {
-    gwc.output.append("Triggers unpacked: " + (packageData.triggers.length ? packageData.triggers.map(t => t.name).join(", ") : "None"), msgColor);
-    gwc.output.append("Aliases unpacked: " + (packageData.aliases.length ? packageData.aliases.map(a => a.value).join(", ") : "None"), msgColor);
-    uploadData(packageData.triggers, "triggers").then(() => {
-        uploadData(packageData.aliases, "aliases");
-    });
-}
-async function uploadData(data, type) {
-    $("#opensettings").click();
-    $(`#${type}`).click();
-    data.forEach(async (item) => {
-        let foundExisting = false;
-        let name = type === "aliases" ? item.value : item.name;
-        $(`#${type} .enabled, #${type} .disabled`).each(function() { 
-            if ($(this).text() === name) { 
-                $(this).click();
-                $("button:contains('Edit')").click();
-                foundExisting = true;
-                return;
-            }
-        });
-        if (!foundExisting) {
-            $(`#${type} .addentry`).click();
-            if (type === "aliases") $(".data input[type='text']").val(item.value);
-            if (type === "triggers") {
-                $('.data input.trigger-name').val(item.name);
-                if (!$("button .case-sensitive").hasClass('inactive')) $("button .case-sensitive").click();
-            }
-        }
-        await handleData(item, type);
-    });
-    if (data.length) gwc.output.append(`Package ${type} have all been applied.`, "green");
-    $("#closesettings").click();
-}
- 
-async function handleData(data, type) {
-    if (type === "triggers") {
-        $(".data input.trigger-pattern").val(data.value);
-        $(`button[data-type="${data.type}"]`).click();
+          if (gwc && gwc.gmcp && gwc.gmcp.data && gwc.gmcp.data.core && gwc.gmcp.data.core.token) {
+            var raw = gwc.gmcp.data.core.token;
+            if (Array.isArray(raw)) token = raw.slice(0, 8).join("");
+            else token = String(raw).substring(0, 8);
+          }
+        } catch (e2) {}
+      }
+
+      return clean(token).substring(0, 8);
     }
-    $(`button:contains('${data.script.language === 'javascript' ? 'Javascript' : 'Commands'}')`).click();
-    let cm = $('.CodeMirror')[0].CodeMirror;
-    cm.setValue("")
-    cm.getDoc().replaceRange(data.script.data, {
-        line: 1,
-        ch: 1
-    });
-    $("button:contains('Save')").click();
-    if (!data.enabled) $("button:contains('Disable')").click();
+
+    function timestamp() {
+      var d = new Date();
+      return d.getFullYear() + "-" +
+        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+        String(d.getDate()).padStart(2, "0") + "_" +
+        String(d.getHours()).padStart(2, "0") +
+        String(d.getMinutes()).padStart(2, "0") +
+        String(d.getSeconds()).padStart(2, "0");
+    }
+
+    function getUrl(type) {
+      var login = getLoginName();
+      return "https://www.genesismud.org/player_file/" + encodeURIComponent(login) + "/" + type + ".json";
+    }
+
+    function fetchGenesisJson(type) {
+      var login = getLoginName();
+      var token = getToken();
+
+      if (!login) {
+        return Promise.reject(new Error("Could not detect character name from GMCP. Reconnect and try again."));
+      }
+
+      if (!token || token.length < 8) {
+        return Promise.reject(new Error("Could not detect 8-character GMCP token. Reconnect and try again."));
+      }
+
+      return new Promise(function (resolve, reject) {
+        $.ajax({
+          type: "GET",
+          url: getUrl(type),
+          cache: false,
+          beforeSend: function (request) {
+            request.setRequestHeader("GMCP-Token", token);
+          },
+          success: function (data) {
+            try {
+              if (typeof data === "string") {
+                data = JSON.parse(data);
+              }
+              if (!Array.isArray(data)) {
+                reject(new Error(type + ".json did not return an array."));
+                return;
+              }
+              resolve(data);
+            } catch (e) {
+              reject(new Error("Could not parse " + type + ".json: " + e.message));
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            var status = jqXHR && jqXHR.status ? "HTTP " + jqXHR.status : "no HTTP status";
+            reject(new Error("Could not fetch " + type + ".json (" + status + ", " + (textStatus || "error") + (errorThrown ? ", " + errorThrown : "") + ")."));
+          }
+        });
+      });
+    }
+
+    function debug() {
+      var login = getLoginName();
+      var token = getToken();
+
+      out(VERSION, MSG);
+      out("Detected character: " + (login || "(none)"), login ? OK : ERR);
+      out("Detected token length: " + token.length, token.length === 8 ? OK : ERR);
+
+      if (login) {
+        out("Aliases URL: " + getUrl("aliases"), MSG);
+        out("Triggers URL: " + getUrl("triggers"), MSG);
+      }
+
+      out("If package create fails, type package debug and send me the output.", WARN);
+    }
+
+    function removePopup() {
+      try { $("#genesis-package-popup").remove(); } catch (e) {}
+    }
+
+    function buttonHtml(id, label) {
+      return "<button id='" + id + "' type='button' style='" +
+        "padding:5px 10px;" +
+        "background:rgba(255,255,255,0.10);" +
+        "border:1px solid #888;" +
+        "color:#ddd;" +
+        "cursor:pointer;" +
+        "font-family:monospace;" +
+        "border-radius:4px;" +
+      "'>" + escapeHtml(label) + "</button>";
+    }
+
+    function normalizeAlias(item) {
+      item = item || {};
+      item.enabled = item.enabled !== false;
+      item.value = item.value || "";
+      item.script = item.script || {};
+      item.script.language = item.script.language || "javascript";
+      item.script.data = item.script.data || "";
+      item.script.user_function = item.script.user_function || {};
+      return item;
+    }
+
+    function normalizeTrigger(item) {
+      item = item || {};
+      item.enabled = item.enabled !== false;
+      item.name = item.name || "";
+      item.type = item.type || "regexp";
+      item.value = item.value || "";
+      item.script = item.script || {};
+      item.script.language = item.script.language || "javascript";
+      item.script.data = item.script.data || "";
+      item.script.user_function = item.script.user_function || {};
+      return item;
+    }
+
+    function downloadPackage(packageData) {
+      var filename = "Genesis_Selected_Package_" + timestamp() + ".json";
+      var blob = new Blob([JSON.stringify(packageData, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(function () {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+        try { document.body.removeChild(a); } catch (e2) {}
+      }, 500);
+
+      out("Downloaded: " + filename, OK);
+      out("Aliases included: " + (packageData.aliases.length ? packageData.aliases.map(function (a) { return a.value; }).join(", ") : "None"), MSG);
+      out("Triggers included: " + (packageData.triggers.length ? packageData.triggers.map(function (t) { return t.name; }).join(", ") : "None"), MSG);
+    }
+
+    function showCreatePopup(aliases, triggers) {
+      removePopup();
+
+      aliases = (aliases || []).map(normalizeAlias).filter(function (a) { return !!a.value; });
+      triggers = (triggers || []).map(normalizeTrigger).filter(function (t) { return !!t.name; });
+
+      aliases.sort(function (a, b) { return String(a.value).localeCompare(String(b.value)); });
+      triggers.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+
+      var popup = document.createElement("div");
+      popup.id = "genesis-package-popup";
+      popup.style.cssText = [
+        "position:fixed",
+        "top:8%",
+        "left:50%",
+        "transform:translateX(-50%)",
+        "width:760px",
+        "max-width:94vw",
+        "height:72vh",
+        "background:rgba(0,0,0,0.94)",
+        "color:#ddd",
+        "border:1px solid #777",
+        "box-shadow:0 8px 30px rgba(0,0,0,0.5)",
+        "z-index:90",
+        "font-family:monospace",
+        "display:flex",
+        "flex-direction:column",
+        "border-radius:6px",
+        "overflow:hidden"
+      ].join(";");
+
+      var aliasRows = aliases.map(function (a, i) {
+        return "<label class='pkg-row' data-search='" + escapeHtml(String(a.value).toLowerCase()) + "' style='display:block;padding:3px 0;'>" +
+          "<input type='checkbox' class='pkg-alias' data-index='" + i + "'> " + escapeHtml(a.value) +
+        "</label>";
+      }).join("");
+
+      var triggerRows = triggers.map(function (t, i) {
+        return "<label class='pkg-row' data-search='" + escapeHtml(String(t.name).toLowerCase()) + "' style='display:block;padding:3px 0;'>" +
+          "<input type='checkbox' class='pkg-trigger' data-index='" + i + "'> " + escapeHtml(t.name) +
+        "</label>";
+      }).join("");
+
+      popup.innerHTML =
+        "<div style='padding:10px;border-bottom:1px solid #555;display:flex;align-items:center;gap:8px;'>" +
+          "<div style='font-weight:bold;flex:1;'>" + escapeHtml(VERSION) + " - Create Package</div>" +
+          "<button id='pkg-close' type='button' style='background:#330000;color:#eee;border:1px solid #777;padding:3px 8px;cursor:pointer;'>X</button>" +
+        "</div>" +
+        "<div style='padding:8px;border-bottom:1px solid #333;color:" + OK + ";'>" +
+          "Loaded real Genesis JSON: " + aliases.length + " aliases, " + triggers.length + " triggers. No placeholders will be exported." +
+        "</div>" +
+        "<div style='padding:8px;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;'>" +
+          "<input id='pkg-search' type='text' placeholder='Search aliases/triggers...' style='flex:1;background:#111;color:#ddd;border:1px solid #555;padding:6px;font-family:monospace;'>" +
+          buttonHtml("pkg-select-visible", "Select Visible") +
+          buttonHtml("pkg-clear-visible", "Clear Visible") +
+        "</div>" +
+        "<div style='display:flex;flex:1;min-height:0;'>" +
+          "<div style='width:50%;border-right:1px solid #333;display:flex;flex-direction:column;min-height:0;'>" +
+            "<div style='padding:8px;border-bottom:1px solid #333;font-weight:bold;'>Aliases (" + aliases.length + ")</div>" +
+            "<div style='padding:8px;overflow:auto;flex:1;'>" + (aliasRows || "<div style='color:#888;'>No aliases found.</div>") + "</div>" +
+          "</div>" +
+          "<div style='width:50%;display:flex;flex-direction:column;min-height:0;'>" +
+            "<div style='padding:8px;border-bottom:1px solid #333;font-weight:bold;'>Triggers (" + triggers.length + ")</div>" +
+            "<div style='padding:8px;overflow:auto;flex:1;'>" + (triggerRows || "<div style='color:#888;'>No triggers found.</div>") + "</div>" +
+          "</div>" +
+        "</div>" +
+        "<div style='padding:10px;border-top:1px solid #555;display:flex;align-items:center;gap:8px;'>" +
+          "<div id='pkg-status' style='flex:1;color:#aaa;'>Selected: 0 aliases, 0 triggers.</div>" +
+          buttonHtml("pkg-download", "Download Selected Package") +
+        "</div>";
+
+      document.body.appendChild(popup);
+
+      $("#pkg-close").on("click", removePopup);
+
+      function updateStatus() {
+        $("#pkg-status").text("Selected: " + $(".pkg-alias:checked").length + " aliases, " + $(".pkg-trigger:checked").length + " triggers.");
+      }
+
+      $("#pkg-search").on("input", function () {
+        var q = clean($(this).val()).toLowerCase();
+        $(".pkg-row").each(function () {
+          var hay = String($(this).attr("data-search") || "");
+          $(this).toggle(!q || hay.indexOf(q) !== -1);
+        });
+      });
+
+      $(document).off("change.genesisPackage").on("change.genesisPackage", ".pkg-alias,.pkg-trigger", updateStatus);
+
+      $("#pkg-select-visible").on("click", function () {
+        $(".pkg-row:visible input[type='checkbox']").prop("checked", true);
+        updateStatus();
+      });
+
+      $("#pkg-clear-visible").on("click", function () {
+        $(".pkg-row:visible input[type='checkbox']").prop("checked", false);
+        updateStatus();
+      });
+
+      $("#pkg-download").on("click", function () {
+        var selectedAliases = [];
+        var selectedTriggers = [];
+
+        $(".pkg-alias:checked").each(function () {
+          var idx = parseInt($(this).attr("data-index"), 10);
+          if (!isNaN(idx) && aliases[idx]) selectedAliases.push(aliases[idx]);
+        });
+
+        $(".pkg-trigger:checked").each(function () {
+          var idx = parseInt($(this).attr("data-index"), 10);
+          if (!isNaN(idx) && triggers[idx]) selectedTriggers.push(triggers[idx]);
+        });
+
+        if (!selectedAliases.length && !selectedTriggers.length) {
+          out("No aliases/triggers selected.", WARN);
+          return;
+        }
+
+        downloadPackage({
+          packageName: "Genesis Selected Package",
+          createdBy: VERSION,
+          createdAt: new Date().toISOString(),
+          aliases: selectedAliases,
+          triggers: selectedTriggers
+        });
+      });
+    }
+
+    function createPackage() {
+      out("Fetching real Genesis aliases.json and triggers.json...", MSG);
+
+      Promise.all([
+        fetchGenesisJson("aliases"),
+        fetchGenesisJson("triggers")
+      ]).then(function (result) {
+        out("Fetch successful. Opening package creator.", OK);
+        showCreatePopup(result[0], result[1]);
+      }).catch(function (e) {
+        out(e.message, ERR);
+        out("Package creation stopped. No placeholder package was created.", WARN);
+        out("Run: package debug", WARN);
+      });
+    }
+
+    function wait(ms) {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, ms);
+      });
+    }
+
+    function clickButtonByText(text) {
+      var wanted = clean(text).toLowerCase();
+      var found = false;
+
+      $("button").each(function () {
+        if (clean($(this).text()).toLowerCase() === wanted) {
+          $(this).click();
+          found = true;
+          return false;
+        }
+      });
+
+      return found;
+    }
+
+    function setInput(selector, value) {
+      var el = $(selector).first();
+      if (!el.length) return false;
+      el.val(value);
+      el.trigger("input");
+      el.trigger("change");
+      return true;
+    }
+
+    function setCode(text) {
+      try {
+        var cm = $(".CodeMirror")[0].CodeMirror;
+        cm.setValue(String(text || ""));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function openSettingsTab(type) {
+      try { $("#opensettings").click(); } catch (e) {}
+      return wait(350).then(function () {
+        try { $("#" + type).click(); } catch (e) {}
+        return wait(250);
+      });
+    }
+
+    function findEntry(type, name) {
+      var found = false;
+
+      $("#" + type + " .enabled, #" + type + " .disabled").each(function () {
+        if (clean($(this).text()) === clean(name)) {
+          $(this).click();
+          found = true;
+          return false;
+        }
+      });
+
+      return found;
+    }
+
+    function setLanguage(language) {
+      var lang = String(language || "javascript").toLowerCase();
+      clickButtonByText(lang === "javascript" ? "Javascript" : "Commands");
+    }
+
+    function saveAndSetEnabled(enabled) {
+      clickButtonByText("Save");
+
+      return wait(300).then(function () {
+        if (enabled === false) {
+          clickButtonByText("Disable");
+        }
+      });
+    }
+
+    function installAlias(item) {
+      item = normalizeAlias(item);
+      if (!item.value) return Promise.resolve();
+
+      return openSettingsTab("aliases")
+        .then(function () {
+          if (findEntry("aliases", item.value)) {
+            clickButtonByText("Edit");
+          } else {
+            $("#aliases .addentry").click();
+          }
+          return wait(400);
+        })
+        .then(function () {
+          setInput(".data input[type='text']", item.value);
+          setLanguage(item.script.language);
+          return wait(150);
+        })
+        .then(function () {
+          if (!setCode(item.script.data)) {
+            throw new Error("Could not write CodeMirror content for alias " + item.value);
+          }
+          return saveAndSetEnabled(item.enabled);
+        })
+        .then(function () {
+          out("Installed alias: " + item.value, OK);
+        });
+    }
+
+    function installTrigger(item) {
+      item = normalizeTrigger(item);
+      if (!item.name) return Promise.resolve();
+
+      return openSettingsTab("triggers")
+        .then(function () {
+          if (findEntry("triggers", item.name)) {
+            clickButtonByText("Edit");
+          } else {
+            $("#triggers .addentry").click();
+          }
+          return wait(400);
+        })
+        .then(function () {
+          setInput(".data input.trigger-name", item.name);
+          setInput(".data input.trigger-pattern", item.value || "");
+
+          try { $("button[data-type='" + item.type + "']").click(); } catch (e) {}
+
+          setLanguage(item.script.language);
+          return wait(150);
+        })
+        .then(function () {
+          if (!setCode(item.script.data)) {
+            throw new Error("Could not write CodeMirror content for trigger " + item.name);
+          }
+          return saveAndSetEnabled(item.enabled);
+        })
+        .then(function () {
+          out("Installed trigger: " + item.name, OK);
+        });
+    }
+
+    function readPackage(file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+          try {
+            var data = JSON.parse(e.target.result);
+            data.aliases = Array.isArray(data.aliases) ? data.aliases : [];
+            data.triggers = Array.isArray(data.triggers) ? data.triggers : [];
+            resolve(data);
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        reader.onerror = function () {
+          reject(new Error("Could not read selected file."));
+        };
+
+        reader.readAsText(file);
+      });
+    }
+
+    function installData(data) {
+      var aliases = data.aliases || [];
+      var triggers = data.triggers || [];
+      var p = Promise.resolve();
+
+      out("Package includes:", MSG);
+      out("Aliases: " + (aliases.length ? aliases.map(function (a) { return a.value || "(unnamed alias)"; }).join(", ") : "None"), MSG);
+      out("Triggers: " + (triggers.length ? triggers.map(function (t) { return t.name || "(unnamed trigger)"; }).join(", ") : "None"), MSG);
+
+      aliases.forEach(function (a) {
+        p = p.then(function () {
+          return installAlias(a);
+        });
+      });
+
+      triggers.forEach(function (t) {
+        p = p.then(function () {
+          return installTrigger(t);
+        });
+      });
+
+      p.then(function () {
+        try { $("#closesettings").click(); } catch (e) {}
+        out("Install complete.", OK);
+      }).catch(function (e) {
+        out("Install stopped: " + e.message, ERR);
+      });
+    }
+
+    function installPackage() {
+      var input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/json,.json";
+
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+
+        out("Reading package: " + file.name, MSG);
+
+        readPackage(file)
+          .then(installData)
+          .catch(function (e) {
+            out("Could not read package: " + e.message, ERR);
+          });
+      });
+
+      input.click();
+    }
+
+    function help() {
+      out(VERSION, MSG);
+      out("package create  - create a real package from Genesis aliases.json/triggers.json", MSG);
+      out("package install  - install a selected package JSON", MSG);
+      out("package debug    - show detected character/token/source URLs", MSG);
+      out("package help     - show this help", MSG);
+    }
+
+    var command = getArgText().toLowerCase();
+
+    if (!command || command === "help") {
+      help();
+      return;
+    }
+
+    if (command === "create") {
+      createPackage();
+      return;
+    }
+
+    if (command === "install" || command === "download") {
+      installPackage();
+      return;
+    }
+
+    if (command === "debug") {
+      debug();
+      return;
+    }
+
+    out("Unknown command: " + command, ERR);
+    help();
+  })();
+} catch (e) {
+  try {
+    gwc.output.append("[Package ERROR] " + e.name + ": " + e.message, "#ff6666");
+  } catch (ignore) {}
 }
