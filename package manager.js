@@ -2,6 +2,10 @@
 Updated/Improved by Vitro
 Original Author: Faery
 
+This version is slightly slower than the original when installing, but a lot safer. The previous
+version created by Faery was sometimes missing stuff when installing packages or creating them because 
+it was trying to install all the aliases/triggers at once.
+
 
 Alias
 Pattern: package
