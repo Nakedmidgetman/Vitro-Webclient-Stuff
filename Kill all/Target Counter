@@ -1,0 +1,164 @@
+/*
+Genesis Target Counter Compact v1
+Trigger name: Target Counter
+Type: regexp
+Pattern:
+^(You (count|find) (a single|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)|You don&#39;t find any|You don't find any)
+
+Works with ka alias.
+
+Behavior:
+  If skill is set:
+    cdonk first bunny
+    kill second bunny
+    kill third bunny
+
+  If no skill:
+    kill first bunny
+    kill second bunny
+    kill third bunny
+*/
+
+try {
+  (function () {
+    function out(msg, color) {
+      try {
+        gwc.output.append("[KA] " + String(msg), color || "#88ccff");
+      } catch (e) {
+        try { console.log("[KA] " + msg); } catch (e2) {}
+      }
+    }
+
+    function clean(text) {
+      return String(text || "").replace(/^\s+|\s+$/g, "");
+    }
+
+    function send(cmd) {
+      try {
+        gwc.connection.send(cmd);
+      } catch (e) {
+        out("Send failed: " + cmd + " | " + e.name + ": " + e.message, "#ff6666");
+      }
+    }
+
+    gwc.userdata.ka = gwc.userdata.ka || {};
+
+    var line = "";
+
+    try {
+      line = clean(args["*"] || args[0] || args[1] || "");
+    } catch (e) {}
+
+    var target = clean(
+      gwc.userdata.ka.pendingTarget ||
+      gwc.userdata.ka.target ||
+      gwc.userdata.target ||
+      gwc.userdata.enemy ||
+      ""
+    );
+
+    var skill = clean(
+      gwc.userdata.ka.pendingSkill ||
+      gwc.userdata.ka.skill ||
+      gwc.userdata.kaskill ||
+      ""
+    );
+
+    var numbers = {
+      "a single": 1,
+      "two": 2,
+      "three": 3,
+      "four": 4,
+      "five": 5,
+      "six": 6,
+      "seven": 7,
+      "eight": 8,
+      "nine": 9,
+      "ten": 10,
+      "eleven": 11,
+      "twelve": 12,
+      "thirteen": 13,
+      "fourteen": 14,
+      "fifteen": 15
+    };
+
+    var adjectives = {
+      1: "first",
+      2: "second",
+      3: "third",
+      4: "fourth",
+      5: "fifth",
+      6: "sixth",
+      7: "seventh",
+      8: "eighth",
+      9: "ninth",
+      10: "tenth",
+      11: "eleventh",
+      12: "twelfth",
+      13: "thirteenth",
+      14: "fourteenth",
+      15: "fifteenth"
+    };
+
+    var countText = "";
+    var howMany = 0;
+    var m;
+
+    if (/You don(?:&#39;|')t find any/i.test(line)) {
+      out("No targets found.", "#ffcc66");
+      try { gwc.trigger.disable("Target Counter"); } catch (e0) {}
+      return;
+    }
+
+    /*
+      Prefer regex from line because arg indexes can vary.
+    */
+    m = line.match(/^You (?:count|find) (a single|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)\b/i);
+
+    if (m && m[1]) {
+      countText = String(m[1]).toLowerCase();
+    } else {
+      /*
+        Fallback to old Exosphere arg location.
+      */
+      try {
+        if (args[3]) countText = String(args[3]).toLowerCase();
+      } catch (e1) {}
+    }
+
+    howMany = numbers[countText] || 0;
+
+    if (!target) {
+      out("No target saved. Use: ka target bunny OR ka bunny", "#ff6666");
+      try { gwc.trigger.disable("Target Counter"); } catch (e2) {}
+      return;
+    }
+
+    if (!howMany) {
+      out("Could not read count from line: " + line, "#ff6666");
+      try { gwc.trigger.disable("Target Counter"); } catch (e3) {}
+      return;
+    }
+
+    out("Found " + howMany + " " + target + ". Attacking...", "#80ff80");
+
+    for (var i = 1; i <= howMany; i++) {
+      if (i === 1 && skill) {
+        send(skill + " " + adjectives[i] + " " + target);
+      } else {
+        send("kill " + adjectives[i] + " " + target);
+      }
+    }
+
+    gwc.userdata.ka.pendingTarget = "";
+    gwc.userdata.ka.pendingSkill = "";
+
+    try {
+      gwc.trigger.disable("Target Counter");
+    } catch (e4) {}
+  })();
+} catch (e) {
+  try {
+    gwc.output.append("[Target Counter ERROR] " + e.name + ": " + e.message, "#ff6666");
+  } catch (ignore) {}
+}
